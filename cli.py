@@ -49,8 +49,7 @@ class Snakemake_runner():
 @click.command()
 @click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
 @click.option("--dryrun", help="run a dryrun", is_flag=True)
-@click.option("--download_genomad_db", help="genomad database", is_flag=True)
-def main(dryrun, genomad_db, download_genomad_db):
+def main(dryrun,  download_genomad_db):
     
   # if genomad_db == None:
   # raise click.BadParameter("genomad_db", param_hint=["--genomad_db"])
