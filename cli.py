@@ -1,6 +1,13 @@
-import rich_click as click
+#!/usr/bin/env python3
+try: 
+  import rich_click as click
+except ModuleNotFoundError as e:
+  print("""\nCould not find rich_click, please make sure to create an environment containing 
+the dependency eg. using conda or pip. See the user guide on the github README\n""")
+  raise e
+
+
 import os
-import snakemake
 import subprocess
 from pathlib import Path
 import shutil
@@ -25,7 +32,7 @@ class Snakemake_runner():
     argument_holder = []
     def __init__(self):
         dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
-        self.snakemake_path = shutil.which("snakemake")  #Path("/home/las/ubuntu2/miniconda3/envs/ptracker_pipeline4/bin/snakemake")
+        self.snakemake_path = shutil.which("snakemake")  
         self.snakefile_path = Path(Path(dir_of_current_file) / "snakefile")
         self.add_argument("--snakefile", self.snakefile_path)
         self.add_argument("-c", "4")
@@ -47,9 +54,9 @@ class Snakemake_runner():
       
 
 @click.command()
-@click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
+#@click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
 @click.option("--dryrun", help="run a dryrun", is_flag=True)
-def main(dryrun,  download_genomad_db):
+def main(dryrun):
     
   # if genomad_db == None:
   # raise click.BadParameter("genomad_db", param_hint=["--genomad_db"])
