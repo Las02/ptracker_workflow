@@ -102,7 +102,7 @@ class wss_file(click.ParamType):
             )
 
         # Assert if file contains the correct column headers
-        if list(df.columns) != self.expected_headers:
+        if sorted(list(df.columns)) != sorted(self.expected_headers):
             raise self.fail(
                 f"{value!r} Does not contain the correct headers\nError Message:\nExpected headers: {self.expected_headers}, found headers: {list(df.columns)}",
                 param,
@@ -121,7 +121,10 @@ class wss_file(click.ParamType):
         # Assert if all paths to files in the file exist
         # TODO make is such that it throws errors for all files which do not exist instead of 1 at a time
         file_exist = lambda file: Path(str(file)).exists()
-        for i, content in enumerate(df.itertuples(index=False)):
+        parts_of_df_which_are_files = df.drop(columns="Sample")
+        for i, content in enumerate(
+            parts_of_df_which_are_files.itertuples(index=False)
+        ):
             for file in list(content):
                 if not file_exists(file):
                     raise self.fail(
@@ -130,6 +133,9 @@ class wss_file(click.ParamType):
                         ctx,
                     )
 
-        self.logger.print(f"Read in the following sample list from {value}:")
+        self.logger.print(
+            f"Read in the following sample list from '{value}' using flag '--{param.human_readable_name}':"
+        )
         self.logger.print(df.to_markdown(index=False))
+        self.logger.print("")
         return value

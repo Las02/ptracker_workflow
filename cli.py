@@ -184,6 +184,11 @@ def main(dryrun, setup_env, reads, reads_and_assembly):
     # if genomad_db == None:
     #     raise click.BadParameter("genomad_db", param_hint=["--genomad_db"])
 
+    if reads_and_assembly != None and reads != None:
+        raise click.BadParameter(
+            "Both --reads_and_assembly and --reads are used, only use one of them",
+        )
+
     if setup_env:
         create_env(logger).setup()
         sys.exit()
