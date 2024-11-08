@@ -14,6 +14,7 @@ rule create_a:
 
 rule create_genomad_db:
   output: protected("genomad_db")
+  conda: "envs/genomad.yaml"
   shell: 
     """
     touch genomad_db
