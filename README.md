@@ -7,6 +7,9 @@ Pipeline for running Plamb: https://github.com/RasmussenLab/vamb/tree/vamb_n2v_a
 # Install dependencies 
 conda create -c conda-forge -c bioconda snakemake-minimal click
 
+# For a extra nice CLI also install rich-click
+pip install rich-click
+
 # clone the repository
 git clone https://github.com/Las02/ptracker_workflow -b clean_up_the_code
 
