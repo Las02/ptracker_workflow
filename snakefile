@@ -11,3 +11,10 @@ rule create_a:
     """
     touch {output}
     """
+
+rule create_genomad_db:
+  output: protected("genomad_db")
+  shell: 
+    """
+    touch genomad_db
+    """
