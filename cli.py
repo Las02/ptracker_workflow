@@ -38,22 +38,6 @@ class Logger:
 #
 
 
-class GeNomadDatabase_setup:
-    def __init__(self, genomad_db):
-        self.genomad_db = genomad_db
-
-    def validate_paths(self):
-        dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
-        if (
-            self.genomad_db == None
-            and not (Path(dir_of_current_file) / "genomad_db" / "genomad_db").exists()
-        ):
-            raise click.UsageError(f"""Could not find the genomad database which is needed for Plamb,
-Either pass in a path to the database using --genomad_db <path>
-or download the genomad_db using the flag: --download_genomad_db
-which will download the genomad_db (~3.1 G) """)
-
-
 class Cli_runner:
     argument_holder = []
 
