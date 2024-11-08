@@ -166,13 +166,19 @@ class List_of_files(click.ParamType):
 @click.option(
     "--reads",
     help="white space seperated file containing read pairs",
-    type=wss_file(Logger(), expected_headers=["Sample", "Read1", "Read2"]),
+    type=wss_file(
+        Logger(),
+        expected_headers=["Sample", "Read1", "Read2"],
+        none_file_columns=["Sample"],
+    ),
 )
 @click.option(
     "--reads_and_assembly",
     help="white space seperated file containing read pairs and assembly",
     type=wss_file(
-        Logger(), expected_headers=["Sample", "Read1", "Read2", "Assembly_graph"]
+        Logger(),
+        expected_headers=["Sample", "Read1", "Read2", "Assembly_graph"],
+        none_file_columns=["Sample"],
     ),
 )
 # @click.option("--r1", cls=OptionEatAll, type=List_of_files())

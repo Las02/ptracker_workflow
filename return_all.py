@@ -69,9 +69,10 @@ class List_of_files(click.ParamType):
 class wss_file(click.ParamType):
     name = "White Space Seperated File"
 
-    def __init__(self, logger, expected_headers) -> None:
+    def __init__(self, logger, expected_headers, none_file_columns) -> None:
         self.logger = logger
         self.expected_headers = expected_headers
+        self.none_file_columns = none_file_columns
 
     def convert(self, value, param, ctx):
         # Read pandas in here, to not slow cli down if pandas is not used
@@ -121,7 +122,7 @@ class wss_file(click.ParamType):
         # Assert if all paths to files in the file exist
         # TODO make is such that it throws errors for all files which do not exist instead of 1 at a time
         file_exist = lambda file: Path(str(file)).exists()
-        parts_of_df_which_are_files = df.drop(columns="Sample")
+        parts_of_df_which_are_files = df.drop(columns=self.none_file_columns)
         for i, content in enumerate(
             parts_of_df_which_are_files.itertuples(index=False)
         ):
