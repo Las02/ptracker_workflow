@@ -14,9 +14,11 @@ git clone https://github.com/Las02/ptracker_workflow -b clean_up_the_code
 ./ptracker_workflow/cli.py --setup_env
 ```
  To run the entire pipeline including assembly pass in a whitespace seperated file containing the reads:
-``` ./ptracker_workflow/cli.py --reads <read_file> ```
+```
+./ptracker_workflow/cli.py --reads <read_file> 
+```
 This file could look like:
-``` {<read_file>}
+``` 
 sample                        read1                          read2
 im_the_sample1_identifier     im/a/path/to/sample_1/read1    im/a/path/to/sample_1/read2
 im_the_sample1_identifier     im/a/path/to/sample_2/read1    im/a/path/to/sample_2/read2
