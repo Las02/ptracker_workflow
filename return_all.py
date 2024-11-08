@@ -135,7 +135,7 @@ class wss_file(click.ParamType):
                     )
 
         self.logger.print(
-            f"Read in the following sample list from '{value}' using flag '--{param.human_readable_name}':"
+            f"\nRead in the following sample list from '{value}' using flag '--{param.human_readable_name}':"
         )
         self.logger.print(df.to_markdown(index=False))
         self.logger.print("")

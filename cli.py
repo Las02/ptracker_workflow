@@ -54,17 +54,18 @@ class Cli_runner:
         # TODO add safety
         self.argument_holder = [self.argument_holder[0]]
 
-    def run(self, dry_run_command=True):
+    def run(self, dry_run_command=False):
         if dry_run_command:
             print("running:", self.argument_holder)
         else:
+            print("running:", self.argument_holder)
             subprocess.run(self.argument_holder)
 
 
 class Snakemake_runner(Cli_runner):
     argument_holder = []
 
-    def __init__(self, logger: Logger, snakefile: str = "snakefile"):
+    def __init__(self, logger: Logger, snakefile: str = "snakefile.py"):
         dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
         self.snakemake_path = shutil.which("snakemake")
         self.add_command_to_run(self.snakemake_path)
@@ -98,6 +99,10 @@ class environment_setupper:
             self.dir_of_current_file / "bin" / "plamb_ptracker_dir"
         )
 
+        self.ptracker_exist = self.plamb_ptracker_dir.exists()
+        self.plamb_exist = self.plamb_dir.exists()
+        self.genomad_db_exist = (self.genomad_dir).exists()
+
     def clone_directory(self, cli):
         git_cli_runner = Cli_runner()
         git_cli_runner.add_command_to_run(self.git_path)
@@ -124,40 +129,48 @@ class environment_setupper:
         snakemake_runner.run()
 
     def setup(self):
-        self.logger.print(f"Using git installation: {self.git_path}")
-        self.logger.print(
-            f"Cloning plamb and ptracker to directory {self.plamb_ptracker_dir} and {self.plamb_ptracker_dir}"
-        )
-        clone_plamb = [
-            "clone",
-            "https://github.com/RasmussenLab/vamb",
-            "-b",
-            "vamb_n2v_asy",
-            self.plamb_dir,
-        ]
-        self.clone_directory(clone_plamb)
-        clone_plamb_ptracekr = [
-            "clone",
-            "https://github.com/Paupiera/ptracker",
-            self.plamb_dir,
-        ]
-        self.clone_directory(clone_plamb_ptracekr)
-        self.install_genomad_db()
+        if False not in [self.ptracker_exist, self.plamb_exist, self.genomad_db_exist]:
+            raise click.UsageError(
+                "It seems that the environment has allready been setup. If something still not works, please add an issue to the repository"
+            )
+
+        if not self.ptracker_exist:
+            self.logger.print(f"Using git installation: {self.git_path}")
+            self.logger.print(
+                f"Cloning ptracker to directory {self.plamb_ptracker_dir}"
+            )
+            clone_plamb_ptracekr = [
+                "clone",
+                "https://github.com/Paupiera/ptracker",
+                self.plamb_dir,
+            ]
+            self.clone_directory(clone_plamb_ptracekr)
+
+        if not self.plamb_exist:
+            self.logger.print(f"Using git installation: {self.git_path}")
+            self.logger.print(f"Cloning plamb to directory {self.plamb_dir}")
+            clone_plamb = [
+                "clone",
+                "https://github.com/RasmussenLab/vamb",
+                "-b",
+                "vamb_n2v_asy",
+                self.plamb_dir,
+            ]
+            self.clone_directory(clone_plamb)
+
+        if not self.genomad_db_exist:
+            self.install_genomad_db()
 
     def check_if_everything_is_setup(self):
-        ptracker_exist = self.plamb_ptracker_dir.exists()
-        plamb_exist = self.plamb_dir.exists()
-        genomad_db_exist = (self.genomad_dir).exists()
-
-        if True not in [ptracker_exist, plamb_exist, genomad_db_exist]:
+        if True not in [self.ptracker_exist, self.plamb_exist, self.genomad_db_exist]:
             raise click.UsageError(
                 "It seems the environment has not been setup run --setup_env to set up the environment"
             )
-        if not ptracker_exist:
+        if not self.ptracker_exist:
             raise click.UsageError(f"Could not find the plamb ptracker directory")
-        if not plamb_exist:
+        if not self.plamb_exist:
             raise click.UsageError(f"Could not find the plamb directory")
-        if not genomad_db_exist:
+        if not self.genomad_db_exist:
             raise click.UsageError(f"Could not find the genomad database")
 
 
@@ -172,7 +185,7 @@ class List_of_files(click.ParamType):
 
 
 @click.command()
-@click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
+# @click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
 @click.option("--dryrun", help="run a dryrun", is_flag=True)
 @click.option("--setup_env", help="Setup enviornment", is_flag=True)
 @click.option(
@@ -183,8 +196,8 @@ class List_of_files(click.ParamType):
     help="white space seperated file containing read pairs",
     type=wss_file(
         Logger(),
-        expected_headers=["Sample", "Read1", "Read2"],
-        none_file_columns=["Sample"],
+        expected_headers=["sample", "read1", "read2"],
+        none_file_columns=["sample"],
     ),
 )
 @click.option(
@@ -192,39 +205,47 @@ class List_of_files(click.ParamType):
     help="white space seperated file containing read pairs and assembly",
     type=wss_file(
         Logger(),
-        expected_headers=["Sample", "Read1", "Read2", "Assembly_graph"],
-        none_file_columns=["Sample"],
+        expected_headers=["sample", "read1", "read2", "assembly_graph"],
+        none_file_columns=["sample"],
     ),
 )
 # @click.option("--r1", cls=OptionEatAll, type=List_of_files())
 # @click.option("--r2", cls=OptionEatAll, type=List_of_files())
-def main(dryrun, setup_env, reads, reads_and_assembly, genomad_db, threads):
+def main(dryrun, setup_env, reads, reads_and_assembly, threads):
     logger = Logger()
 
-    # genomad_db = None
-    # if genomad_db == None:
-    #     raise click.BadParameter("genomad_db", param_hint=["--genomad_db"])
+    # Set up the environment
+    if setup_env:
+        environment_setupper(logger).setup()
+        sys.exit()
+
+    # Check if the environment is setup correctly
+    environment_setupper(logger).check_if_everything_is_setup()
 
     if reads_and_assembly != None and reads != None:
         raise click.BadParameter(
             "Both --reads_and_assembly and --reads are used, only use one of them",
         )
 
-    if setup_env:
-        environment_setupper(logger).setup()
-        sys.exit()
-
-    environment_setupper(logger).check_if_everything_is_setup()
-
-    # GeNomadDatabase_setup(genomad_db).validate_paths()
-
     snakemake_runner = Snakemake_runner(logger)
-    snakemake_runner.add_arguments(["-c", threads])
+    snakemake_runner.add_arguments(["-c", str(threads)])
+
+    # Run the pipeline from the reads, meaning the pipeline will assemble the reads beforehand
+    if reads != None:
+        snakemake_runner.add_arguments(["--config", f"files={reads}"])
+        to_print_while_running_snakemake = (
+            f"running snakemake with {threads} thread(s), from paired reads"
+        )
+
+    # Run the pipeline from the reads and the assembly graphs
+    if reads_and_assembly != None:
+        snakemake_runner.add_arguments(["--config", f"files={reads_and_assembly}"])
+        to_print_while_running_snakemake = f"running snakemake with {threads} thread(s), from paired reads and assembly graph"
 
     if dryrun:
         snakemake_runner.add_argument("-n")
 
-    logger.print("running snakemake")
+    logger.print(to_print_while_running_snakemake)
     snakemake_runner.run()
 
 

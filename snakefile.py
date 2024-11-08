@@ -27,23 +27,24 @@ mem_gb_fn  = lambda rulename: config.get(rulename, {"mem_gb": default_mem_gb}).g
 
 # Read in the sample data
 df = pd.read_csv(config["files"], sep="\s+", comment="#")
+print(df)
 sample_id = collections.defaultdict(list)
 sample_id_path = collections.defaultdict(dict)
-for sample, id, read1, read2 in zip(df.SAMPLE, df.ID, df.READ1, df.READ2):
+for id, read1, read2 in zip(df["sample"], df.read1, df.read2):
     id = str(id)
-    sample = str(sample)
+    sample = "Plamb_Ptracker"
     sample_id[sample].append(id)
     sample_id_path[sample][id] = [read1, read2]
 
-# Print out run information
-print("Running for the following:")
-for sample in sample_id.keys():
-    print("-"*20)
-    print("Sample:", f"{sample}:")
-    for id in sample_id[sample]:
-        print(f"{id}:")
-        print(sample_id_path[sample][id])
-    print("-"*20)
+# # Print out run information
+# print("Running for the following:")
+# for sample in sample_id.keys():
+#     print("-"*20)
+#     print("Sample:", f"{sample}:")
+#     for id in sample_id[sample]:
+#         print(f"{id}:")
+#         print(sample_id_path[sample][id])
+#     print("-"*20)
 
 #  Define paths to the reads
 read_fw  = lambda wildcards: sample_id_path[wildcards.key][wildcards.id][0]
@@ -112,105 +113,105 @@ rule all:
 #            '--cut_window_size 6  '
 #            '--thread {threads} 2> {log:q}'
 
-# rulename = "spades"
-# rule spades:
-#     input:
-#        fw = read_fw_after_fastp, 
-#        rv = read_rv_after_fastp, 
-#     output:
-#        outdir = directory("data/sample_{key}/spades_{id}"),
-#        outfile = "data/sample_{key}/spades_{id}/contigs.fasta",
-#        graph = "data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa", # The graph Changed
-#        graphinfo  = "data/sample_{key}/spades_{id}/contigs.paths", # The graph Changed
-#     threads: threads_fn(rulename)
-#     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-#     benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
-#     log: config.get("log", "log/") + "{key}_{id}_" + rulename
-#     shellsmk
-#        "bin/SPAdes-3.15.4-Linux/bin/metaspades.py "
-#        "-t 20 -m 180 "
-#        "-o {output.outdir} -1 {input.fw} -2 {input.rv} " 
-#        "-t {threads} --memory {resources.mem_gb} > {log} " 
+rulename = "spades"
+rule spades:
+    input:
+       fw = read_fw_after_fastp, 
+       rv = read_rv_after_fastp, 
+    output:
+       outdir = directory("data/sample_{key}/spades_{id}"),
+       outfile = "data/sample_{key}/spades_{id}/contigs.fasta",
+       graph = "data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa", # The graph Changed
+       graphinfo  = "data/sample_{key}/spades_{id}/contigs.paths", # The graph Changed
+    threads: threads_fn(rulename)
+    resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
+    benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
+    log: config.get("log", "log/") + "{key}_{id}_" + rulename
+    shell:
+       "bin/SPAdes-3.15.4-Linux/bin/metaspades.py "
+       "-t 20 -m 180 "
+       "-o {output.outdir} -1 {input.fw} -2 {input.rv} " 
+       "-t {threads} --memory {resources.mem_gb} > {log} " 
 
-# rulename = "rename_contigs"
-# rule rename_contigs:
-#     input:
-#         "data/sample_{key}/spades_{id}/contigs.fasta"
-#     output:
-#         "data/sample_{key}/spades_{id}/contigs.renamed.fasta"
-#     threads: threads_fn(rulename)
-#     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-#     benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
-#     log: config.get("log", "log/") + "{key}_{id}_" + rulename
-#     shell:
-#         """
-#         sed 's/^>/>S{wildcards.id}C/' {input} > {output} 2> {log}
-#         """
+rulename = "rename_contigs"
+rule rename_contigs:
+    input:
+        "data/sample_{key}/spades_{id}/contigs.fasta"
+    output:
+        "data/sample_{key}/spades_{id}/contigs.renamed.fasta"
+    threads: threads_fn(rulename)
+    resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
+    benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
+    log: config.get("log", "log/") + "{key}_{id}_" + rulename
+    shell:
+        """
+        sed 's/^>/>S{wildcards.id}C/' {input} > {output} 2> {log}
+        """
 
-# rulename="cat_contigs"
-# rule cat_contigs:
-#     input: lambda wildcards: expand("data/sample_{key}/spades_{id}/contigs.renamed.fasta", key=wildcards.key, id=sample_id[wildcards.key]),
-#         # expand_dir("data/sample_[key]/spades_[value]/contigs.renamed.fasta", sample_id)
-#     output: "data/sample_{key}/contigs.flt.fna.gz"
-#     threads: threads_fn(rulename)
-#     params: script = "bin/vamb/src/concatenate.py"
-#     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-#     benchmark: config.get("benchmark", "benchmark/") + "{key}" + rulename
-#     log: config.get("log", "log/") + "{key}_" + rulename
-#     conda: "envs/pipeline_conda.yaml"
-#     shell: 
-#         "python {params.script} {output} {input} 2> {log} "  # TODO should filter depending on size????
+rulename="cat_contigs"
+rule cat_contigs:
+    input: lambda wildcards: expand("data/sample_{key}/spades_{id}/contigs.renamed.fasta", key=wildcards.key, id=sample_id[wildcards.key]),
+        # expand_dir("data/sample_[key]/spades_[value]/contigs.renamed.fasta", sample_id)
+    output: "data/sample_{key}/contigs.flt.fna.gz"
+    threads: threads_fn(rulename)
+    params: script = "bin/vamb/src/concatenate.py"
+    resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
+    benchmark: config.get("benchmark", "benchmark/") + "{key}" + rulename
+    log: config.get("log", "log/") + "{key}_" + rulename
+    conda: "envs/pipeline_conda.yaml"
+    shell: 
+        "python {params.script} {output} {input} 2> {log} "  # TODO should filter depending on size????
 
-# rulename = "get_contig_names"
-# rule get_contig_names:
-#     input:
-#         "data/sample_{key}/contigs.flt.fna.gz"
-#     output: 
-#         "data/sample_{key}/contigs.names.sorted"
-#     threads: threads_fn(rulename)
-#     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-#     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
-#     log: config.get("log", "log/") + "{key}_" + rulename
-#     shell:
-#         "zcat {input} | grep '>' | sed 's/>//' > {output} 2> {log} "
+rulename = "get_contig_names"
+rule get_contig_names:
+    input:
+        "data/sample_{key}/contigs.flt.fna.gz"
+    output: 
+        "data/sample_{key}/contigs.names.sorted"
+    threads: threads_fn(rulename)
+    resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
+    benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
+    log: config.get("log", "log/") + "{key}_" + rulename
+    shell:
+        "zcat {input} | grep '>' | sed 's/>//' > {output} 2> {log} "
 
 
-# rulename = "Strobealign_bam_default"
-# rule Strobealign_bam_default:
-#         input: 
-#             fw = read_fw_after_fastp,
-#             rv = read_rv_after_fastp,
-#             contig = "data/sample_{key}/contigs.flt.fna.gz",
-#             # fw = lambda wildcards: sample_id_path[wildcards.key][wildcards.value][0],
-#             # rv = lambda wildcards: sample_id_path[wildcards.key][wildcards.value][1],
-#             # contig = "results/{key}/contigs.flt.fna",
-#         output:
-#             "data/sample_{key}/mapped/{id}.bam"
-#         threads: threads_fn(rulename)
-#         resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-#         benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
-#         log: config.get("log", "log/") + "{key}_{id}_" + rulename
-#         conda: "envs/strobe_env.yaml"
-#         shell:
-#             """
-#             # module load samtools
-#             strobealign -t {threads} {input.contig} {input.fw} {input.rv} | samtools sort -o {output} 2> {log}
-#             """
+rulename = "Strobealign_bam_default"
+rule Strobealign_bam_default:
+        input: 
+            fw = read_fw_after_fastp,
+            rv = read_rv_after_fastp,
+            contig = "data/sample_{key}/contigs.flt.fna.gz",
+            # fw = lambda wildcards: sample_id_path[wildcards.key][wildcards.value][0],
+            # rv = lambda wildcards: sample_id_path[wildcards.key][wildcards.value][1],
+            # contig = "results/{key}/contigs.flt.fna",
+        output:
+            "data/sample_{key}/mapped/{id}.bam"
+        threads: threads_fn(rulename)
+        resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
+        benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
+        log: config.get("log", "log/") + "{key}_{id}_" + rulename
+        conda: "envs/strobe_env.yaml"
+        shell:
+            """
+            # module load samtools
+            strobealign -t {threads} {input.contig} {input.fw} {input.rv} | samtools sort -o {output} 2> {log}
+            """
 
-#  # Sort bam files
-# rulename="sort"
-# rule sort:
-#     input:
-#         "data/sample_{key}/mapped/{id}.bam",
-#     output:
-#         "data/sample_{key}/mapped_sorted/{id}.bam.sort",
-#     threads: threads_fn(rulename)
-#     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-#     benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
-#     log: config.get("log", "log/") + "{key}_{id}_" + rulename
-#     conda: "envs/pipeline_conda.yaml"
-#     shell:
-#         "samtools sort {input} -o {output} "
+ # Sort bam files
+rulename="sort"
+rule sort:
+    input:
+        "data/sample_{key}/mapped/{id}.bam",
+    output:
+        "data/sample_{key}/mapped_sorted/{id}.bam.sort",
+    threads: threads_fn(rulename)
+    resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
+    benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
+    log: config.get("log", "log/") + "{key}_{id}_" + rulename
+    conda: "envs/pipeline_conda.yaml"
+    shell:
+        "samtools sort {input} -o {output} "
 
 ## The next part of the pipeline is composed of the following steps:
 # (Despite the steps are numerated, some of the order might change)
