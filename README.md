@@ -25,6 +25,19 @@ im_the_sample1_identifier     im/a/path/to/sample_2/read1    im/a/path/to/sample
 ```
 
 
+
+To run the pipeline from allready assembled reads pass in a whitespace seperated file containing the reads and additionally
+3 files which Spades produces: 
+| Description                         | File Name                               |
+|:------------------------------------|:----------------------------------------|
+| The assembled contigs               | `contigs.fasta`                         |
+| The simplified assembly graphs      | `assembly_graph_after_simplification.gfa` |
+| A metadata file                     | `contigs.paths`                         |
+
+
+
+
+
 ## Advanced
 
 
