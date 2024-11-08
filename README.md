@@ -9,7 +9,7 @@ conda install -c conda-forge -c bioconda snakemake-minimal
 pip install rich-click
 
 # clone the repository
-git clone https://github.com/Las02/ptracker_workflow -b clean_up_the_code
+git clone https://github.com/Las02/ptracker_workflow -b try_cli
 
 # Run the application to set up everything
 ./ptracker_workflow/cli.py --setup_env
