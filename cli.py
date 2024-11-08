@@ -10,6 +10,7 @@ either of modueles eg. using conda or pip. See the user guide on the github READ
         raise e
 
 
+from os.path import exists
 from return_all import *
 import os
 import sys
@@ -35,6 +36,22 @@ class Logger:
 
 # def validate_paths(self):
 #
+
+
+class GeNomadDatabase_setup:
+    def __init__(self, genomad_db):
+        self.genomad_db = genomad_db
+
+    def validate_paths(self):
+        dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
+        if (
+            self.genomad_db == None
+            and not (Path(dir_of_current_file) / "genomad_db" / "genomad_db").exists()
+        ):
+            raise click.UsageError(f"""Could not find the genomad database which is needed for Plamb,
+Either pass in a path to the database using --genomad_db <path>
+or download the genomad_db using the flag: --download_genomad_db
+which will download the genomad_db (~3.1 G) """)
 
 
 class Cli_runner:
@@ -69,7 +86,6 @@ class Snakemake_runner(Cli_runner):
         self.add_command_to_run(self.snakemake_path)
         self.snakefile_path = Path(Path(dir_of_current_file) / snakefile)
         self.add_arguments(["--snakefile", self.snakefile_path])
-        self.add_arguments(["-c", "8"])
         self.validate_paths()
 
     def validate_paths(self):
@@ -85,12 +101,11 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
             )
 
 
-class create_env:
+class environment_setupper:
     def __init__(self, logger: Logger):
         self.dir_of_current_file = Path(os.path.dirname(os.path.realpath(__file__)))
         self.git_path = shutil.which("git")
         self.logger = logger
-        self.logger.print(f"Using git installation: {self.git_path}")
 
         self.plamb_dir = self.dir_of_current_file / "bin" / "plamb"
         self.genomad_dir = self.dir_of_current_file / "genomad_db"
@@ -99,29 +114,16 @@ class create_env:
             self.dir_of_current_file / "bin" / "plamb_ptracker_dir"
         )
 
-    def clone_directories(self):
+    def clone_directory(self, cli):
         git_cli_runner = Cli_runner()
         git_cli_runner.add_command_to_run(self.git_path)
-
-        clone_plamb = [
-            "clone",
-            "https://github.com/RasmussenLab/vamb",
-            "-b",
-            "vamb_n2v_asy",
-            self.plamb_dir,
-        ]
-        clone_plamb_ptracekr = [
-            "clone",
-            "https://github.com/Paupiera/ptracker",
-            self.plamb_dir,
-        ]
-
-        for cli in [clone_plamb, clone_plamb_ptracekr]:
-            git_cli_runner.add_arguments(cli)
-            git_cli_runner.run()
-            git_cli_runner.clear_arguments()
+        git_cli_runner.add_arguments(cli)
+        git_cli_runner.run()
 
     def install_genomad_db(self):
+        self.logger.print(
+            f"Installing Genomad database (~3.1 GB) to {self.genomad_dir}"
+        )
         snakemake_runner = Snakemake_runner(self.logger)
         # Set target rule to genomad_db to create the database
         snakemake_runner.add_arguments(["genomad_db"])
@@ -132,21 +134,47 @@ class create_env:
         snakemake_runner.run()
 
     def install_conda_environments(self):
+        self.logger.print(f"Installing conda environments")
         snakemake_runner = Snakemake_runner(self.logger)
         snakemake_runner.add_arguments(["--use-conda", "--conda-create-envs-only"])
         snakemake_runner.run()
 
     def setup(self):
+        self.logger.print(f"Using git installation: {self.git_path}")
         self.logger.print(
             f"Cloning plamb and ptracker to directory {self.plamb_ptracker_dir} and {self.plamb_ptracker_dir}"
         )
-        self.clone_directories()
-        self.logger.print(f"Installing conda environments")
-        self.install_conda_environments()
-        self.logger.print(
-            f"Installing Genomad database (~3.1 GB) to {self.genomad_dir}"
-        )
+        clone_plamb = [
+            "clone",
+            "https://github.com/RasmussenLab/vamb",
+            "-b",
+            "vamb_n2v_asy",
+            self.plamb_dir,
+        ]
+        self.clone_directory(clone_plamb)
+        clone_plamb_ptracekr = [
+            "clone",
+            "https://github.com/Paupiera/ptracker",
+            self.plamb_dir,
+        ]
+        self.clone_directory(clone_plamb_ptracekr)
         self.install_genomad_db()
+
+    def check_if_everything_is_setup(self):
+        ptracker_exist = self.plamb_ptracker_dir.exists()
+        plamb_exist = self.plamb_dir.exists()
+        genomad_db_exist = (self.genomad_dir).exists()
+
+        if True not in [ptracker_exist, plamb_exist, genomad_db_exist]:
+            raise click.UsageError(
+                "It seems the environment has not been setup run --setup_env to set up the environment"
+            )
+        if not ptracker_exist:
+            raise click.UsageError(f"Could not find the plamb ptracker directory")
+        if not plamb_exist:
+            raise click.UsageError(f"Could not find the plamb directory")
+        if not genomad_db_exist:
+            raise click.UsageError(f"Could not find the genomad database")
 
 
 class List_of_files(click.ParamType):
@@ -160,9 +188,12 @@ class List_of_files(click.ParamType):
 
 
 @click.command()
-# @click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
+@click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
 @click.option("--dryrun", help="run a dryrun", is_flag=True)
 @click.option("--setup_env", help="Setup enviornment", is_flag=True)
+@click.option(
+    "--threads", help="threads to run the application with", type=int, default=1
+)
 @click.option(
     "--reads",
     help="white space seperated file containing read pairs",
@@ -183,7 +214,7 @@ class List_of_files(click.ParamType):
 )
 # @click.option("--r1", cls=OptionEatAll, type=List_of_files())
 # @click.option("--r2", cls=OptionEatAll, type=List_of_files())
-def main(dryrun, setup_env, reads, reads_and_assembly):
+def main(dryrun, setup_env, reads, reads_and_assembly, genomad_db, threads):
     logger = Logger()
 
     # genomad_db = None
@@ -196,10 +227,15 @@ def main(dryrun, setup_env, reads, reads_and_assembly):
         )
 
     if setup_env:
-        create_env(logger).setup()
+        environment_setupper(logger).setup()
         sys.exit()
 
+    environment_setupper(logger).check_if_everything_is_setup()
+
+    # GeNomadDatabase_setup(genomad_db).validate_paths()
+
     snakemake_runner = Snakemake_runner(logger)
+    snakemake_runner.add_arguments(["-c", threads])
 
     if dryrun:
         snakemake_runner.add_argument("-n")
