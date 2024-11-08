@@ -1,2 +1,4 @@
 all:
-	python cli.py
+	python3 cli.py
+setup_env:
+	python3 cli.py --setup_env
