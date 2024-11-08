@@ -25,16 +25,48 @@ threads_fn = lambda rulename: config.get(rulename, {"threads": default_threads})
 walltime_fn  = lambda rulename: config.get(rulename, {"walltime": default_walltime}).get("walltime", default_walltime) 
 mem_gb_fn  = lambda rulename: config.get(rulename, {"mem_gb": default_mem_gb}).get("mem_gb", default_mem_gb) 
 
+# # Read in the sample data
+# df = pd.read_csv(config["files"], sep="\s+", comment="#")
+# sample_id = collections.defaultdict(list)
+# sample_id_path = collections.defaultdict(dict)
+# for sample, id, read1, read2 in zip(df.SAMPLE, df.ID, df.READ1, df.READ2):
+#     id = str(id)
+#     sample = str(sample)
+#     sample_id[sample].append(id)
+#     sample_id_path[sample][id] = [read1, read2]
 # Read in the sample data
-df = pd.read_csv(config["files"], sep="\s+", comment="#")
-print(df)
-sample_id = collections.defaultdict(list)
-sample_id_path = collections.defaultdict(dict)
-for id, read1, read2 in zip(df["sample"], df.read1, df.read2):
-    id = str(id)
-    sample = "Plamb_Ptracker"
-    sample_id[sample].append(id)
-    sample_id_path[sample][id] = [read1, read2]
+
+FROM_ASSEMBLY = False
+
+if config.get("read_file") != None:
+    df = pd.read_csv(config["read_file"], sep="\s+", comment="#")
+    print(df)
+    sample_id = collections.defaultdict(list)
+    sample_id_path = collections.defaultdict(dict)
+    for id, read1, read2 in zip(df["sample"], df.read1, df.read2):
+        id = str(id)
+        sample = "Plamb_Ptracker"
+        sample_id[sample].append(id)
+        sample_id_path[sample][id] = [read1, read2]
+
+if config.get("read_assembly_file") != None:
+    df = pd.read_csv(config["read_assembly_file"], sep="\s+", comment="#")
+    print(df)
+    sample_id = collections.defaultdict(list)
+    sample_id_path = collections.defaultdict(dict)
+    sample_id_path_assembly = collections.defaultdict(dict)
+    sample_id_path_contig = collections.defaultdict(dict)
+    sample_id_path_contigpaths = collections.defaultdict(dict)
+    for id, read1, read2, assembly, contig, contig_path in zip(df["sample"], df.read1, df.read2, df.assembly_graph, df.contig, df.contig_paths):
+        id = str(id)
+        sample = "Plamb_Ptracker"
+        sample_id[sample].append(id)
+        sample_id_path[sample][id] = [read1, read2]
+        sample_id_path_assembly[sample][id] = [assembly]
+        sample_id_path_contig[sample][id] = [contig]
+        sample_id_path_contigpaths [sample][id] = [contig_path]
+    FROM_ASSEMBLY = True
+
 
 # # Print out run information
 # print("Running for the following:")
@@ -92,26 +124,30 @@ rule all:
         # expand_dir("data/sample_[key]/scapp_[value]/delete_me", sample_id)
         #expand_dir("data/sample_[key]/mp_spades_[value]/contigs.fasta", sample_id),
 
-# rulename = "fastp"
-# rule fastp:
-#    input: 
-#       fw = read_fw, 
-#       rv = read_rv, 
-#    output:
-#       html = "data/sample_{key}/reads_fastp/{id}/report.html", # TODO insert stuff
-#       json = "data/sample_{key}/reads_fastp/{id}/report.json",
-#       fw = read_fw_after_fastp, 
-#       rv = read_rv_after_fastp, 
-#    threads: threads_fn(rulename)
-#    resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-#    benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
-#    log: config.get("log", "log/") + "{key}_{id}_" + rulename
-#    shell:
-#            'bin/fastp -i {input.fw:q} -I {input.rv:q} '
-#            '-o {output.fw:q} -O {output.rv:q} --html {output.html:q} --json {output.json:q} '
-#            '--trim_poly_g --poly_g_min_len 7 --cut_tail --cut_front '
-#            '--cut_window_size 6  '
-#            '--thread {threads} 2> {log:q}'
+rulename = "fastp"
+rule fastp:
+   input: 
+      fw = read_fw, 
+      rv = read_rv, 
+   output:
+      html = "data/sample_{key}/reads_fastp/{id}/report.html", # TODO insert stuff
+      json = "data/sample_{key}/reads_fastp/{id}/report.json",
+      fw = read_fw_after_fastp, 
+      rv = read_rv_after_fastp, 
+   threads: threads_fn(rulename)
+   resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
+   benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
+   log: config.get("log", "log/") + "{key}_{id}_" + rulename
+   shell:
+           'bin/fastp -i {input.fw:q} -I {input.rv:q} '
+           '-o {output.fw:q} -O {output.rv:q} --html {output.html:q} --json {output.json:q} '
+           '--trim_poly_g --poly_g_min_len 7 --cut_tail --cut_front '
+           '--cut_window_size 6  '
+           '--thread {threads} 2> {log:q}'
+
+contigs =  lambda wildcards: sample_id_path_contig[wildcards.key][wildcards.id][0] if FROM_ASSEMBLY else "data/sample_{key}/spades_{id}/contigs.fasta"
+contigs_paths =  lambda wildcards: sample_id_path_contigpaths[wildcards.key][wildcards.id][0] if FROM_ASSEMBLY else "data/sample_{key}/spades_{id}/contigs.paths"
+assembly_graph =  lambda wildcards: sample_id_path_assembly[wildcards.key][wildcards.id][0] if FROM_ASSEMBLY else "data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa"
 
 rulename = "spades"
 rule spades:
@@ -121,8 +157,8 @@ rule spades:
     output:
        outdir = directory("data/sample_{key}/spades_{id}"),
        outfile = "data/sample_{key}/spades_{id}/contigs.fasta",
-       graph = "data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa", # The graph Changed
-       graphinfo  = "data/sample_{key}/spades_{id}/contigs.paths", # The graph Changed
+       graph ="data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa",
+       graphinfo  = "data/sample_{key}/spades_{id}/contigs.paths",
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
@@ -133,10 +169,12 @@ rule spades:
        "-o {output.outdir} -1 {input.fw} -2 {input.rv} " 
        "-t {threads} --memory {resources.mem_gb} > {log} " 
 
+
+
 rulename = "rename_contigs"
 rule rename_contigs:
     input:
-        "data/sample_{key}/spades_{id}/contigs.fasta"
+        contigs,
     output:
         "data/sample_{key}/spades_{id}/contigs.renamed.fasta"
     threads: threads_fn(rulename)
@@ -278,8 +316,8 @@ rule align_contigs:
 rulename = "weighted_assembly_graphs"
 rule weighted_assembly_graphs:
     input:
-        graph = "data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa", # The graph Changedhis created?
-        graphinfo  = "data/sample_{key}/spades_{id}/contigs.paths", # TODO The graph Changed Where is this
+        graph = assembly_graph,
+        graphinfo  = contigs_paths
     output:
         os.path.join(OUTDIR,"{key}",'tmp','assembly_graphs','{id}.pkl'),
         os.path.join(OUTDIR,"{key}", 'log','assembly_graph_processing','weighted_assembly_graphs_{id}.finished')

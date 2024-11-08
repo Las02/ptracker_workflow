@@ -44,8 +44,8 @@ class Cli_runner:
     def add_command_to_run(self, command_to_run):
         self.argument_holder = [command_to_run] + self.argument_holder
 
-    def add_argument(self, argument, command=""):
-        self.argument_holder += [argument, command]
+    # def add_argument(self, argument, command=""):
+    #     self.argument_holder += [argument, command]
 
     def add_arguments(self, arguments: List):
         self.argument_holder += arguments
@@ -54,12 +54,19 @@ class Cli_runner:
         # TODO add safety
         self.argument_holder = [self.argument_holder[0]]
 
+    def prettyprint_args(self):
+        [print(x, end=" ") for x in self.argument_holder]
+        print()
+
     def run(self, dry_run_command=False):
         if dry_run_command:
             print("running:", self.argument_holder)
         else:
-            print("running:", self.argument_holder)
+            print("Running:")
+            self.prettyprint_args()
             subprocess.run(self.argument_holder)
+            print("Ran:")
+            self.prettyprint_args()
 
 
 class Snakemake_runner(Cli_runner):
@@ -205,7 +212,14 @@ class List_of_files(click.ParamType):
     help="white space seperated file containing read pairs and assembly",
     type=wss_file(
         Logger(),
-        expected_headers=["sample", "read1", "read2", "assembly_graph"],
+        expected_headers=[
+            "sample",
+            "read1",
+            "read2",
+            "assembly_graph",
+            "contig",
+            "contig_paths",
+        ],
         none_file_columns=["sample"],
     ),
 )
@@ -232,18 +246,20 @@ def main(dryrun, setup_env, reads, reads_and_assembly, threads):
 
     # Run the pipeline from the reads, meaning the pipeline will assemble the reads beforehand
     if reads != None:
-        snakemake_runner.add_arguments(["--config", f"files={reads}"])
+        snakemake_runner.add_arguments(["--config", f"read_file={reads}"])
         to_print_while_running_snakemake = (
             f"running snakemake with {threads} thread(s), from paired reads"
         )
 
     # Run the pipeline from the reads and the assembly graphs
     if reads_and_assembly != None:
-        snakemake_runner.add_arguments(["--config", f"files={reads_and_assembly}"])
+        snakemake_runner.add_arguments(
+            ["--config", f"read_assembly_file={reads_and_assembly}"]
+        )
         to_print_while_running_snakemake = f"running snakemake with {threads} thread(s), from paired reads and assembly graph"
 
     if dryrun:
-        snakemake_runner.add_argument("-n")
+        snakemake_runner.add_arguments(["-n"])
 
     logger.print(to_print_while_running_snakemake)
     snakemake_runner.run()
