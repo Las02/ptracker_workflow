@@ -2,20 +2,28 @@
 Pipeline for running Plamb: https://github.com/RasmussenLab/vamb/tree/vamb_n2v_asy
 
 
-## Running the pipeline
+## Quick Start
 ```
-# clone this repository
+# Install dependencies 
+conda create -c conda-forge -c bioconda snakemake-minimal click
+
+# clone the repository
 git clone https://github.com/Las02/ptracker_workflow -b clean_up_the_code
-cd ptracker_workflow
 
-# Clone the Plamb directory and the Plamb helper script directory
-mkdir bin
-cd bin
-git clone https://github.com/RasmussenLab/vamb -b vamb_n2v_asy
-git clone https://github.com/Paupiera/ptracker
-
+# Run the application to set up everything
+./ptracker_workflow/cli.py --setup_env
+```
+ To run the entire pipeline including assembly pass in a whitespace seperated file containing the reads:
+``` ./ptracker_workflow/cli.py --reads <read_file> ```
+This file could look like:
+``` {<read_file>}
+sample                        read1                          read2
+im_the_sample1_identifier     im/a/path/to/sample_1/read1    im/a/path/to/sample_1/read2
+im_the_sample1_identifier     im/a/path/to/sample_2/read1    im/a/path/to/sample_2/read2
 ```
 
+
+## Advanced
 
 
 The pipeline can be configurated in: ``` config/config.yaml ```
