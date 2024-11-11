@@ -240,6 +240,10 @@ def main(dryrun, setup_env, reads, reads_and_assembly, threads):
         raise click.BadParameter(
             "Both --reads_and_assembly and --reads are used, only use one of them",
         )
+    if reads_and_assembly == None and reads == None:
+        raise click.BadParameter(
+            "Neither --reads_and_assembly and --reads are used, please define one of them",
+        )
 
     snakemake_runner = Snakemake_runner(logger)
     snakemake_runner.add_arguments(["-c", str(threads)])
