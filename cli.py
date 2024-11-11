@@ -174,11 +174,11 @@ class environment_setupper:
                 "It seems the environment has not been setup run --setup_env to set up the environment"
             )
         if not self.ptracker_exist:
-            raise click.UsageError(f"Could not find the plamb ptracker directory")
+            raise click.UsageError(f"Could not find the plamb ptracker directory, try running the tool with --setup-env")
         if not self.plamb_exist:
-            raise click.UsageError(f"Could not find the plamb directory")
+            raise click.UsageError(f"Could not find the plamb directory, try running the tool with --setup-env")
         if not self.genomad_db_exist:
-            raise click.UsageError(f"Could not find the genomad database")
+            raise click.UsageError(f"Could not find the genomad database, try running the tool with --setup-env")
 
 
 class List_of_files(click.ParamType):
