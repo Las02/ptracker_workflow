@@ -58,7 +58,7 @@ class Cli_runner:
         [print(x, end=" ") for x in self.argument_holder]
         print()
 
-    def run(self, dry_run_command=False):
+    def run(self, dry_run_command=True):
         if dry_run_command:
             print("running:", self.argument_holder)
         else:
@@ -140,6 +140,7 @@ class environment_setupper:
             raise click.UsageError(
                 "It seems that the environment has allready been setup. If something still not works, please add an issue to the repository"
             )
+        self.logger.print("Setting up environment")
 
         if not self.ptracker_exist:
             self.logger.print(f"Using git installation: {self.git_path}")
@@ -170,9 +171,8 @@ class environment_setupper:
 
     def check_if_everything_is_setup(self):
         if True not in [self.ptracker_exist, self.plamb_exist, self.genomad_db_exist]:
-            raise click.UsageError(
-                "It seems the environment has not been setup run --setup_env to set up the environment"
-            )
+            self.logger.print("It seems the environment has not been setup")
+            return False
         if not self.ptracker_exist:
             raise click.UsageError(
                 f"Could not find the plamb ptracker directory, try running the tool with --setup-env"
@@ -181,10 +181,12 @@ class environment_setupper:
             raise click.UsageError(
                 f"Could not find the plamb directory, try running the tool with --setup-env"
             )
+
         if not self.genomad_db_exist:
             raise click.UsageError(
                 f"Could not find the genomad database, try running the tool with --setup-env"
             )
+        return True
 
 
 class List_of_files(click.ParamType):
@@ -199,7 +201,6 @@ class List_of_files(click.ParamType):
 
 @click.command()
 # @click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
-@click.option("--setup_env", help="Setup environment", is_flag=True)
 @click.option(
     "--reads",
     help="""\bWhite space seperated file containing read pairs and sample names.
@@ -224,7 +225,7 @@ Passing in this file means that the pipeline will be run from the start, meaning
     help=f"""\bWhite space seperated file containing read pairs, sample names and paths to assembly files
 <Notice the header names are required to be: 
 sample, read1, read2, assembly_graph, contig and contig_paths>
-This file could look like:  https://github.com/Las02/ptracker_workflow/blob/try_cli/example_files/reads_and_assembly_example_file
+This file could look like:  https://github.com/Las02/ptracker_workflow/\nblob/try_cli/example_files/reads_and_assembly_example_file
 Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
         """,
     type=wss_file(
@@ -246,14 +247,15 @@ Passing in this file means that the pipeline will not assemble the reads but run
     type=int,
     default=1,
 )
+@click.option("--setup_env", help="Setup environment", is_flag=True)
 @click.option("--dryrun", help="Run a dryrun", is_flag=True)
 # @click.option("--r1", cls=OptionEatAll, type=List_of_files())
 # @click.option("--r2", cls=OptionEatAll, type=List_of_files())
 def main(setup_env, reads, reads_and_assembly, threads, dryrun):
     """
-    This is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
-    Before running the program for the first time please run --setup-env to install the genomad database
-    and required scripts. For Quick Start please see the README: https://github.com/Las02/ptracker_workflow/tree/try_cli
+    \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
+    The first time running the program it will try to install the genomad database (~3.1 G) and required scripts.
+    For Quick Start please see the README: https://github.com/Las02/ptracker_workflow/tree/try_cli
     """
     logger = Logger()
 
@@ -262,8 +264,9 @@ def main(setup_env, reads, reads_and_assembly, threads, dryrun):
         environment_setupper(logger).setup()
         sys.exit()
 
-    # Check if the environment is setup correctly
-    environment_setupper(logger).check_if_everything_is_setup()
+    # Check if the environment is setup correctly, if not set it up
+    if not environment_setupper(logger).check_if_everything_is_setup():
+        environment_setupper(logger).setup()
 
     if reads_and_assembly is not None and reads is not None:
         raise click.BadParameter(

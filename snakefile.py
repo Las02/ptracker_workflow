@@ -36,7 +36,10 @@ mem_gb_fn  = lambda rulename: config.get(rulename, {"mem_gb": default_mem_gb}).g
 #     sample_id_path[sample][id] = [read1, read2]
 # Read in the sample data
 
-FROM_ASSEMBLY = False
+
+contigs =  "data/sample_{key}/spades_{id}/contigs.fasta"
+contigs_paths =  "data/sample_{key}/spades_{id}/contigs.paths"
+assembly_graph = "data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa"
 
 if config.get("read_file") != None:
     df = pd.read_csv(config["read_file"], sep="\s+", comment="#")
@@ -65,7 +68,11 @@ if config.get("read_assembly_file") != None:
         sample_id_path_assembly[sample][id] = [assembly]
         sample_id_path_contig[sample][id] = [contig]
         sample_id_path_contigpaths [sample][id] = [contig_path]
-    FROM_ASSEMBLY = True
+
+    contigs =  lambda wildcards: sample_id_path_contig[wildcards.key][wildcards.id][0] 
+    contigs_paths =  lambda wildcards: sample_id_path_contigpaths[wildcards.key][wildcards.id][0] 
+    assembly_graph =  lambda wildcards: sample_id_path_assembly[wildcards.key][wildcards.id][0] 
+
 
 
 # # Print out run information
@@ -145,9 +152,6 @@ rule fastp:
            '--cut_window_size 6  '
            '--thread {threads} 2> {log:q}'
 
-contigs =  lambda wildcards: sample_id_path_contig[wildcards.key][wildcards.id][0] if FROM_ASSEMBLY else "data/sample_{key}/spades_{id}/contigs.fasta"
-contigs_paths =  lambda wildcards: sample_id_path_contigpaths[wildcards.key][wildcards.id][0] if FROM_ASSEMBLY else "data/sample_{key}/spades_{id}/contigs.paths"
-assembly_graph =  lambda wildcards: sample_id_path_assembly[wildcards.key][wildcards.id][0] if FROM_ASSEMBLY else "data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa"
 
 rulename = "spades"
 rule spades:
