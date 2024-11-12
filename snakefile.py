@@ -210,8 +210,10 @@ rule spades:
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
     log: config.get("log", "log/") + "{key}_{id}_" + rulename
+    conda: THIS_FILE_DIR / "envs/spades_env.yaml"
     shell:
-       "bin/SPAdes-3.15.4-Linux/bin/metaspades.py "
+       # "bin/SPAdes-3.15.4-Linux/bin/metaspades.py "
+       "spades --meta "
        "-t 20 -m 180 "
        "-o {output.outdir} -1 {input.fw} -2 {input.rv} " 
        "-t {threads} --memory {resources.mem_gb} > {log} " 

@@ -1,6 +1,24 @@
 #!/usr/bin/env python3
 try:
     import rich_click as click
+
+    # Only set rich_click options if rich_click is installed else default to basic click package
+    click.rich_click.OPTION_GROUPS = {
+        "cli.py": [
+            {
+                "name": "Defining input files: One of these are required",
+                "options": ["--reads", "--reads_and_assembly_dir"],
+            },
+            {
+                "name": "Basic Usage",
+                "options": ["--output", "--threads"],
+            },
+            {
+                "name": "Other Options",
+                "options": ["--dryrun", "--setup_env", "--help"],
+            },
+        ],
+    }
 except ModuleNotFoundError as e:
     try:
         import click
@@ -105,6 +123,8 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
         self.add_arguments((["--config"] + self.config_options))
         # Log
         self.logger.print(self.to_print_while_running_snakemake)
+        # use conda: always
+        snakemake_runner.add_arguments(["--use-conda"])
         # Run
         super().run()
 
@@ -218,6 +238,7 @@ class List_of_files(click.ParamType):
 @click.command()
 # @click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
 @click.option(
+    "-r",
     "--reads",
     help="""\bWhite space separated file containing read pairs. 
 <Notice the header names are required to be: read1 and read2>
@@ -237,14 +258,15 @@ Passing in this file means that the pipeline will be run from the start, meaning
     ),
 )
 @click.option(
+    "-a",
     "--reads_and_assembly_dir",
     help=f"""\bWhite space separated file containing read pairs and paths to Spades output assembly directories.
 <Notice the header names are required to be: read1, read2 and assembly_dir>
 This file could look like:  
 ```
 read1                     read2                     assembly_dir
-path/sample_1/read1    path/sample_1/read2    path/sample_1/Spades_output
-path/sample_2/read1    path/sample_2/read2    path/sample_2/Spades_output
+path/sample_1/read1    path/sample_1/read2    path/sample_1/Spades_dir
+path/sample_2/read1    path/sample_2/read2    path/sample_2/Spades_dir
 ```
 Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
         """,
@@ -259,21 +281,27 @@ Passing in this file means that the pipeline will not assemble the reads but run
     ),
 )
 @click.option(
+    "-t",
     "--threads",
     help="Number of threads to run the application with",
+    show_default=True,
     type=int,
     default=1,
 )
 @click.option(
+    "-o",
     "--output",
     help="Output directory, defaults to the directory which the command is run in",
+    type=click.Path(exists=False),
 )
 @click.option(
+    "-e",
     "--setup_env",
     help="Setup environment, this will be done automatically the first time the application is ran",
     is_flag=True,
 )
 @click.option(
+    "-n",
     "--dryrun",
     help="Run a dryrun for the specified files. Showing the parts of the pipeline which will be run ",
     is_flag=True,
