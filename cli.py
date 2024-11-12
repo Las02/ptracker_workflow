@@ -222,8 +222,9 @@ Passing in this file means that the pipeline will be run from the start, meaning
 @click.option(
     "--reads_and_assembly",
     help=f"""\bWhite space seperated file containing read pairs, sample names and paths to assembly files
-<Notice the header names are required to be: sample, read1, read2, assembly_graph, contig and contig_paths>
-This file could look like: 
+<Notice the header names are required to be: 
+sample, read1, read2, assembly_graph, contig and contig_paths>
+This file could look like:  https://github.com/Las02/ptracker_workflow/blob/try_cli/example_files/reads_and_assembly_example_file
 Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
         """,
     type=wss_file(
