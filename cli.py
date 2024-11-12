@@ -49,6 +49,9 @@ from typing import List
 
 # click.rich_click.USE_RICH_MARKUP = True
 
+# both -h and --help avalible instead of just --help
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
+
 
 class Logger:
     def print(self, arg):
