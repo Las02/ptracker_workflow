@@ -25,9 +25,8 @@ im/a/path/to/sample_2/read1    im/a/path/to/sample_2/read2
 ```
 To dry run the pipeline before pass in the --dryrun flag
 
-To run the pipeline from allready assembled reads pass in a whitespace seperated file containing the reads and the path 
-to the spades assembly directories for each readpairs
-This direcory must contain the following 3 files which Spades produces: 
+To run the pipeline from allready assembled reads pass in a whitespace seperated file containing the reads and the path to the spades assembly directories for each read pairs
+This directory must contain the following 3 files which Spades produces: 
 | Description                         | File Name from Spades                               |
 |:------------------------------------|:----------------------------------------|
 | The assembled contigs               | `contigs.fasta`                         |
@@ -40,9 +39,6 @@ read1                          read2                         assembly_graph
 im/a/path/to/sample_1/read1    im/a/path/to/sample_1/read2   path/sample_1/Spades_output  
 im/a/path/to/sample_2/read1    im/a/path/to/sample_2/read2   path/sample_2/Spades_output          
 ```
-
-
-
 
 ## Advanced
 
