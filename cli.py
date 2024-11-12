@@ -203,65 +203,66 @@ class List_of_files(click.ParamType):
 # @click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
 @click.option(
     "--reads",
-    help="""\bWhite space seperated file containing read pairs and sample names.
-<Notice the header names are required to be: sample, read1 and read2>
+    help="""\bWhite space separated file containing read pairs. 
+<Notice the header names are required to be: read1 and read2>
 This file could look like:
 ```
-sample                 read1                     read2
-sample1_identifier     path/to/sample_1/read1    path/to/sample_1/read2
-sample2_identifier     path/to/sample_2/read1    path/to/sample_2/read2
+read1                     read2
+path/to/sample_1/read1    path/to/sample_1/read2
+path/to/sample_2/read1    path/to/sample_2/read2
 ```
 Passing in this file means that the pipeline will be run from the start, meaning it will also assemble the reads.
 
 """,
     type=wss_file(
         Logger(),
-        expected_headers=["sample", "read1", "read2"],
-        none_file_columns=["sample"],
+        expected_headers=["read1", "read2"],
+        none_file_columns=[],
     ),
 )
 @click.option(
     "--reads_and_assembly_dir",
-    help=f"""\bWhite space seperated file containing read pairs, sample names and paths to a Spades assembly directory 
-<Notice the header names are required to be: sample, read1, read2, assembly_dir>
+    help=f"""\bWhite space separated file containing read pairs and paths to Spades output assembly directories.
+<Notice the header names are required to be: read1, read2 and assembly_dir>
 This file could look like:  
-sample                 read1                     read2                  
-sample1_identifier     path/to/sample_1/read1    path/to/sample_1/read2
-sample2_identifier     path/to/sample_2/read1    path/to/sample_2/read2
+```
+read1                     read2                     assembly_dir
+path/sample_1/read1    path/sample_1/read2    path/sample_1/Spades_output
+path/sample_2/read1    path/sample_2/read2    path/sample_1/Spades_output
+```
 Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
         """,
     type=wss_file(
         Logger(),
         expected_headers=[
-            "sample",
-            "read1",
-            "read2",
-            "assembly_dir",
-        ],
-        none_file_columns=["sample"],
-    ),
-)
-@click.option(
-    "--reads_and_assembly",
-    help=f"""\bWhite space seperated file containing read pairs, sample names and paths to assembly files
-<Notice the header names are required to be: 
-sample, read1, read2, assembly_graph, contig and contig_paths>
-This file could look like:  https://github.com/Las02/ptracker_workflow/\nblob/try_cli/example_files/reads_and_assembly_example_file
-Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
-        """,
-    type=wss_file(
-        Logger(),
-        expected_headers=[
-            "sample",
             "read1",
             "read2",
             "assembly_graph",
-            "contig",
-            "contig_paths",
         ],
-        none_file_columns=["sample"],
+        none_file_columns=[],
     ),
 )
+# @click.option(
+#     "--reads_and_assembly",
+#     help=f"""\bWhite space seperated file containing read pairs, sample names and paths to assembly files
+# <Notice the header names are required to be:
+# sample, read1, read2, assembly_graph, contig and contig_paths>
+# This file could look like:  https://github.com/Las02/ptracker_workflow/\nblob/try_cli/example_files/reads_and_assembly_example_file
+# Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step.
+#         """,
+#     type=wss_file(
+#         Logger(),
+#         expected_headers=[
+#             "sample",
+#             "read1",
+#             "read2",
+#             "assembly_graph",
+#             "contig",
+#             "contig_paths",
+#         ],
+#         none_file_columns=["sample"],
+#     ),
+# )
 @click.option(
     "--threads",
     help="Number of threads to run the application with",
@@ -272,7 +273,7 @@ Passing in this file means that the pipeline will not assemble the reads but run
 @click.option("--dryrun", help="Run a dryrun", is_flag=True)
 # @click.option("--r1", cls=OptionEatAll, type=List_of_files())
 # @click.option("--r2", cls=OptionEatAll, type=List_of_files())
-def main(setup_env, reads, reads_and_assembly, threads, dryrun, reads_and_assembly_dir):
+def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
     The first time running the program it will try to install the genomad database (~3.1 G) and required scripts.
@@ -289,11 +290,11 @@ def main(setup_env, reads, reads_and_assembly, threads, dryrun, reads_and_assemb
     if not environment_setupper(logger).check_if_everything_is_setup():
         environment_setupper(logger).setup()
 
-    if reads_and_assembly is not None and reads is not None:
+    if reads_and_assembly_dir is not None and reads is not None:
         raise click.BadParameter(
             "Both --reads_and_assembly and --reads are used, only use one of them",
         )
-    if reads_and_assembly is None and reads is None:
+    if reads_and_assembly_dir is None and reads is None:
         raise click.BadParameter(
             "Neither --reads_and_assembly and --reads are used, please define one of them",
         )
@@ -310,9 +311,9 @@ def main(setup_env, reads, reads_and_assembly, threads, dryrun, reads_and_assemb
         )
 
     # Run the pipeline from the reads and the assembly graphs
-    if reads_and_assembly is not None:
+    if reads_and_assembly_dir is not None:
         snakemake_runner.add_arguments(
-            ["--config", f"read_assembly_file={reads_and_assembly}"]
+            ["--config", f"read_assembly_dir={reads_and_assembly}"]
         )
         to_print_while_running_snakemake = f"running snakemake with {threads} thread(s), from paired reads and assembly graph"
 

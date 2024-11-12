@@ -67,7 +67,7 @@ class List_of_files(click.ParamType):
 
 
 class wss_file(click.ParamType):
-    name = "White Space Seperated File"
+    name = "White Space Separated File"
 
     def __init__(self, logger, expected_headers, none_file_columns) -> None:
         self.logger = logger

@@ -47,33 +47,33 @@ if config.get("read_file") != None:
     print(df)
     sample_id = collections.defaultdict(list)
     sample_id_path = collections.defaultdict(dict)
-    for id, read1, read2 in zip(df["sample"], df.read1, df.read2):
-        id = str(id)
+    for id, read1, read2 in enumerate(zip(df.read1, df.read2)):
+        id = f"sample_{str(id)}"
         sample = "Plamb_Ptracker"
         sample_id[sample].append(id)
         sample_id_path[sample][id] = [read1, read2]
 
-if config.get("read_assembly_file") != None:
-    df = pd.read_csv(config["read_assembly_file"], sep="\s+", comment="#")
-    print(df)
-    sample_id = collections.defaultdict(list)
-    sample_id_path = collections.defaultdict(dict)
-    sample_id_path_assembly = collections.defaultdict(dict)
-    sample_id_path_contig = collections.defaultdict(dict)
-    sample_id_path_contigpaths = collections.defaultdict(dict)
-    for id, read1, read2, assembly, contig, contig_path in zip(df["sample"], df.read1, df.read2, df.assembly_graph, df.contig, df.contig_paths):
-        id = str(id)
-        sample = "Plamb_Ptracker"
-        sample_id[sample].append(id)
-        sample_id_path[sample][id] = [read1, read2]
-        sample_id_path_assembly[sample][id] = [assembly]
-        sample_id_path_contig[sample][id] = [contig]
-        sample_id_path_contigpaths [sample][id] = [contig_path]
-
-    # Redefin definede paths to files
-    contigs =  lambda wildcards: sample_id_path_contig[wildcards.key][wildcards.id][0] 
-    contigs_paths =  lambda wildcards: sample_id_path_contigpaths[wildcards.key][wildcards.id][0] 
-    assembly_graph =  lambda wildcards: sample_id_path_assembly[wildcards.key][wildcards.id][0] 
+# if config.get("read_assembly_file") != None:
+#     df = pd.read_csv(config["read_assembly_file"], sep="\s+", comment="#")
+#     print(df)
+#     sample_id = collections.defaultdict(list)
+#     sample_id_path = collections.defaultdict(dict)
+#     sample_id_path_assembly = collections.defaultdict(dict)
+#     sample_id_path_contig = collections.defaultdict(dict)
+#     sample_id_path_contigpaths = collections.defaultdict(dict)
+#     for id, read1, read2, assembly, contig, contig_path in zip(df["sample"], df.read1, df.read2, df.assembly_graph, df.contig, df.contig_paths):
+#         id = str(id)
+#         sample = "Plamb_Ptracker"
+#         sample_id[sample].append(id)
+#         sample_id_path[sample][id] = [read1, read2]
+#         sample_id_path_assembly[sample][id] = [assembly]
+#         sample_id_path_contig[sample][id] = [contig]
+#         sample_id_path_contigpaths [sample][id] = [contig_path]
+#
+#     # Redefin definede paths to files
+#     contigs =  lambda wildcards: sample_id_path_contig[wildcards.key][wildcards.id][0] 
+#     contigs_paths =  lambda wildcards: sample_id_path_contigpaths[wildcards.key][wildcards.id][0] 
+#     assembly_graph =  lambda wildcards: sample_id_path_assembly[wildcards.key][wildcards.id][0] 
 
 
 if config.get("read_assembly_dir") != None:
@@ -82,8 +82,8 @@ if config.get("read_assembly_dir") != None:
     sample_id = collections.defaultdict(list)
     sample_id_path = collections.defaultdict(dict)
     sample_id_path_assembly = collections.defaultdict(dict)
-    for id, read1, read2, assembly, contig, contig_path in zip(df["sample"], df.read1, df.read2, df.assembly_dir):
-        id = str(id)
+    for id, read1, read2, assembly, contig, contig_path in enumerate(zip( df.read1, df.read2, df.assembly_dir)):
+        id = f"sample_{str(id)}"
         sample = "Plamb_Ptracker"
         sample_id[sample].append(id)
         sample_id_path[sample][id] = [read1, read2]
