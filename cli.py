@@ -242,35 +242,22 @@ Passing in this file means that the pipeline will not assemble the reads but run
         none_file_columns=[],
     ),
 )
-# @click.option(
-#     "--reads_and_assembly",
-#     help=f"""\bWhite space seperated file containing read pairs, sample names and paths to assembly files
-# <Notice the header names are required to be:
-# sample, read1, read2, assembly_graph, contig and contig_paths>
-# This file could look like:  https://github.com/Las02/ptracker_workflow/\nblob/try_cli/example_files/reads_and_assembly_example_file
-# Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step.
-#         """,
-#     type=wss_file(
-#         Logger(),
-#         expected_headers=[
-#             "sample",
-#             "read1",
-#             "read2",
-#             "assembly_graph",
-#             "contig",
-#             "contig_paths",
-#         ],
-#         none_file_columns=["sample"],
-#     ),
-# )
 @click.option(
     "--threads",
     help="Number of threads to run the application with",
     type=int,
     default=1,
 )
-@click.option("--setup_env", help="Setup environment", is_flag=True)
-@click.option("--dryrun", help="Run a dryrun", is_flag=True)
+@click.option(
+    "--setup_env",
+    help="Setup environment, this will be done automatically the first time the application is ran",
+    is_flag=True,
+)
+@click.option(
+    "--dryrun",
+    help="Run a dryrun for the specified files. Showing the parts of the pipeline which will be run ",
+    is_flag=True,
+)
 # @click.option("--r1", cls=OptionEatAll, type=List_of_files())
 # @click.option("--r2", cls=OptionEatAll, type=List_of_files())
 def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir):
