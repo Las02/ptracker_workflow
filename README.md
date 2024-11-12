@@ -13,7 +13,7 @@ pip install rich-click
 git clone https://github.com/Las02/ptracker_workflow -b try_cli
 
 ```
- To run the entire pipeline including assembly pass in a whitespace seperated file containing the reads:
+ To run the entire pipeline including assembly pass in a whitespace separated file containing the reads:
 ```
 ./ptracker_workflow/cli.py --reads <read_file> 
 ```
@@ -25,7 +25,7 @@ im/a/path/to/sample_2/read1    im/a/path/to/sample_2/read2
 ```
 To dry run the pipeline before pass in the --dryrun flag
 
-To run the pipeline from allready assembled reads pass in a whitespace seperated file containing the reads and the path to the spades assembly directories for each read pair.
+To run the pipeline from allready assembled reads pass in a whitespace separated file containing the reads and the path to the spades assembly directories for each read pair.
 This directory must contain the following 3 files which Spades produces: 
 | Description                         | File Name from Spades                               |
 |:------------------------------------|:----------------------------------------|
