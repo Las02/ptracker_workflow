@@ -6,16 +6,24 @@ try:
     click.rich_click.OPTION_GROUPS = {
         "cli.py": [
             {
-                "name": "Defining input files: One of these are required",
+                "name": "Defining input files: One of these options are required",
                 "options": ["--reads", "--reads_and_assembly_dir"],
             },
             {
-                "name": "Basic Usage",
-                "options": ["--output", "--threads"],
+                "name": "Additional Required Arguments",
+                "options": [
+                    "--output",
+                ],
+                "table_styles": {
+                    "row_styles": ["yellow", "default", "default", "default"],
+                },
             },
             {
                 "name": "Other Options",
-                "options": ["--dryrun", "--setup_env", "--help"],
+                "options": ["--threads", "--dryrun", "--setup_env", "--help"],
+                "table_styles": {
+                    "row_styles": ["yellow", "default", "default", "default"],
+                },
             },
         ],
     }
@@ -291,7 +299,7 @@ Passing in this file means that the pipeline will not assemble the reads but run
 @click.option(
     "-o",
     "--output",
-    help="Output directory, defaults to the directory which the command is run in",
+    help="Output directory for the files produced by the pipeline",
     type=click.Path(exists=False),
 )
 @click.option(
@@ -313,6 +321,7 @@ def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output):
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
     The first time running the program it will try to install the genomad database (~3.1 G) and required scripts.
     For running the pipeline either the --reads or the --reads_and_assembly_dir arguments are required.
+    Additionally, the --output argument is required which defines the output directory.
     For Quick Start please see the README: https://github.com/Las02/ptracker_workflow/tree/try_cli
     """
     logger = Logger()
@@ -322,25 +331,30 @@ def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output):
         environment_setupper(logger).setup()
         sys.exit()
 
-    # Check if the environment is setup correctly, if not set it up
-    if not environment_setupper(logger).check_if_everything_is_setup():
-        environment_setupper(logger).setup()
+    if output is None:
+        raise click.BadParameter(
+            "--output is required",
+        )
 
     if reads_and_assembly_dir is not None and reads is not None:
         raise click.BadParameter(
             "Both --reads_and_assembly and --reads are used, only use one of them",
         )
+
     if reads_and_assembly_dir is None and reads is None:
         raise click.BadParameter(
             "Neither --reads_and_assembly and --reads are used, please define one of them",
         )
 
+    # Check if the environment is setup correctly, if not set it up
+    if not environment_setupper(logger).check_if_everything_is_setup():
+        environment_setupper(logger).setup()
+
     snakemake_runner = Snakemake_runner(logger)
     snakemake_runner.add_arguments(["-c", str(threads)])
 
-    # Set output dir if argument is set else default to CWD
-    if output is not None:
-        snakemake_runner.output_directory = output
+    # Set output directory
+    snakemake_runner.output_directory = output
 
     # Run the pipeline from the reads, meaning the pipeline will assemble the reads beforehand
     if reads is not None:
