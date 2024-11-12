@@ -196,7 +196,7 @@ class environment_setupper:
             )
             clone_plamb_ptracekr = [
                 "clone",
-                "https://github.com/Paupiera/ptracker",
+                "git@github.com:Paupiera/ptracker",
                 self.plamb_ptracker_dir,
             ]
             self.clone_directory(clone_plamb_ptracekr)
@@ -206,7 +206,7 @@ class environment_setupper:
             self.logger.print(f"Cloning plamb to directory {self.plamb_dir}")
             clone_plamb = [
                 "clone",
-                "https://github.com/RasmussenLab/vamb",
+                "git@github.com:RasmussenLab/vamb",
                 "-b",
                 "vamb_n2v_asy",
                 self.plamb_dir,
