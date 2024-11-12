@@ -69,10 +69,13 @@ class List_of_files(click.ParamType):
 class wss_file(click.ParamType):
     name = "White Space Separated File"
 
-    def __init__(self, logger, expected_headers, none_file_columns) -> None:
+    def __init__(
+        self, logger, expected_headers, none_file_columns=[], spades_column=None
+    ) -> None:
         self.logger = logger
         self.expected_headers = expected_headers
         self.none_file_columns = none_file_columns
+        self.spades_column = spades_column
 
     def convert(self, value, param, ctx):
         # Read pandas in here, to not slow cli down if pandas is not used
@@ -134,9 +137,35 @@ class wss_file(click.ParamType):
                         ctx,
                     )
 
+        # Assert if spades columns are correct
+        if self.spades_column is not None:
+            [
+                self.is_spades_dir_correct(x, value, param, ctx)
+                for x in df[self.spades_column]
+            ]
+
         self.logger.print(
             f"\nRead in the following sample list from '{value}' using flag '--{param.human_readable_name}':"
         )
         self.logger.print(df.to_markdown(index=False))
         self.logger.print("")
         return value
+
+    def is_spades_dir_correct(self, x, value, param, ctx):
+        if not Path(x).is_dir():
+            raise self.fail(
+                f"{value!r} has defined a Spades directory which is not a directory\nError Message:\n < {value} > contains '{x}' which is not a dir",
+                param,
+                ctx,
+            )
+        for file in [
+            "contigs.fasta",
+            "assembly_graph_after_simplification.gfa",
+            "contigs.paths",
+        ]:
+            if not (Path(x) / file).exists():
+                raise self.fail(
+                    f"{value!r} has defined a Spades directory ('{x}') which does not contain {file}\nError Message:\n < {value} > contains '{x}' which does not contain '{file}'. Are you sure '{x}' is a spades output directory?",
+                    param,
+                    ctx,
+                )

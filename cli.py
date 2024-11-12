@@ -11,6 +11,8 @@ either of modueles eg. using conda or pip. See the user guide on the github READ
 
 
 from os.path import exists
+
+from pandas.core.generic import config
 from return_all import *
 import os
 import sys
@@ -50,15 +52,11 @@ class Cli_runner:
     def add_arguments(self, arguments: List):
         self.argument_holder += arguments
 
-    def clear_arguments(self):
-        # TODO add safety
-        self.argument_holder = [self.argument_holder[0]]
-
     def prettyprint_args(self):
         [print(x, end=" ") for x in self.argument_holder]
         print()
 
-    def run(self, dry_run_command=True):
+    def run(self, dry_run_command=False):
         if dry_run_command:
             print("running:", self.argument_holder)
         else:
@@ -71,14 +69,20 @@ class Cli_runner:
 
 class Snakemake_runner(Cli_runner):
     argument_holder = []
+    to_print_while_running_snakemake = None
+    config_options = []
+    snakemake_path = shutil.which("snakemake")
+    dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
+    output_directory = os.getcwd()
 
     def __init__(self, logger: Logger, snakefile: str = "snakefile.py"):
-        dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
-        self.snakemake_path = shutil.which("snakemake")
         self.add_command_to_run(self.snakemake_path)
-        self.snakefile_path = Path(Path(dir_of_current_file) / snakefile)
+        self.snakefile_path = Path(Path(self.dir_of_current_file) / snakefile)
         self.add_arguments(["--snakefile", self.snakefile_path])
         self.validate_paths()
+        # default to run snakemake in current directory
+        self.logger = logger
+        # Config needs to be added in a special way
 
     def validate_paths(self):
         if not self.snakefile_path.exists():
@@ -91,6 +95,18 @@ class Snakemake_runner(Cli_runner):
                 """Could not find snakemake, is it installed?
 See following installation guide: https://snakemake.readthedocs.io/en/stable/getting_started/installation.html"""
             )
+
+    def add_to_config(self, to_add):
+        self.config_options += [to_add]
+
+    def run(self):
+        self.add_to_config(f"output_directory={self.output_directory}")
+        # Add config options
+        self.add_arguments((["--config"] + self.config_options))
+        # Log
+        self.logger.print(self.to_print_while_running_snakemake)
+        # Run
+        super().run()
 
 
 class environment_setupper:
@@ -122,7 +138,7 @@ class environment_setupper:
         )
         snakemake_runner = Snakemake_runner(self.logger)
         # Set target rule to genomad_db to create the database
-        snakemake_runner.add_arguments(["genomad_db"])
+        snakemake_runner.add_arguments(["download_genomad_db"])
         # Download the directory in the location of the current file
         snakemake_runner.add_arguments(["--directory", self.dir_of_current_file])
         # Use conda as the genomad and therefore the genomad environment needs to be used
@@ -150,7 +166,7 @@ class environment_setupper:
             clone_plamb_ptracekr = [
                 "clone",
                 "https://github.com/Paupiera/ptracker",
-                self.plamb_dir,
+                self.plamb_ptracker_dir,
             ]
             self.clone_directory(clone_plamb_ptracekr)
 
@@ -228,7 +244,7 @@ This file could look like:
 ```
 read1                     read2                     assembly_dir
 path/sample_1/read1    path/sample_1/read2    path/sample_1/Spades_output
-path/sample_2/read1    path/sample_2/read2    path/sample_1/Spades_output
+path/sample_2/read1    path/sample_2/read2    path/sample_2/Spades_output
 ```
 Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
         """,
@@ -237,9 +253,9 @@ Passing in this file means that the pipeline will not assemble the reads but run
         expected_headers=[
             "read1",
             "read2",
-            "assembly_graph",
+            "assembly_dir",
         ],
-        none_file_columns=[],
+        spades_column="assembly_dir",
     ),
 )
 @click.option(
@@ -247,6 +263,10 @@ Passing in this file means that the pipeline will not assemble the reads but run
     help="Number of threads to run the application with",
     type=int,
     default=1,
+)
+@click.option(
+    "--output",
+    help="Output directory, defaults to the directory which the command is run in",
 )
 @click.option(
     "--setup_env",
@@ -260,7 +280,7 @@ Passing in this file means that the pipeline will not assemble the reads but run
 )
 # @click.option("--r1", cls=OptionEatAll, type=List_of_files())
 # @click.option("--r2", cls=OptionEatAll, type=List_of_files())
-def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir):
+def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
     The first time running the program it will try to install the genomad database (~3.1 G) and required scripts.
@@ -289,26 +309,26 @@ def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir):
 
     snakemake_runner = Snakemake_runner(logger)
     snakemake_runner.add_arguments(["-c", str(threads)])
-    to_print_while_running_snakemake = None
+
+    # Set output dir if argument is set else default to CWD
+    if output is not None:
+        snakemake_runner.output_directory = output
 
     # Run the pipeline from the reads, meaning the pipeline will assemble the reads beforehand
     if reads is not None:
-        snakemake_runner.add_arguments(["--config", f"read_file={reads}"])
-        to_print_while_running_snakemake = (
+        snakemake_runner.add_to_config(f"read_file={reads}")
+        snakemake_runner.to_print_while_running_snakemake = (
             f"running snakemake with {threads} thread(s), from paired reads"
         )
 
     # Run the pipeline from the reads and the assembly graphs
     if reads_and_assembly_dir is not None:
-        snakemake_runner.add_arguments(
-            ["--config", f"read_assembly_dir={reads_and_assembly}"]
-        )
-        to_print_while_running_snakemake = f"running snakemake with {threads} thread(s), from paired reads and assembly graph"
+        snakemake_runner.add_to_config(f"read_assembly_dir={reads_and_assembly_dir}")
+        snakemake_runner.to_print_while_running_snakemake = f"running snakemake with {threads} thread(s), from paired reads and assembly graph"
 
     if dryrun:
         snakemake_runner.add_arguments(["-n"])
 
-    logger.print(to_print_while_running_snakemake)
     snakemake_runner.run()
 
 

@@ -4,6 +4,7 @@ channels:
   - bioconda
   - defaults
 dependencies:
+  - samtools
   - _libgcc_mutex=0.1=conda_forge
   - _openmp_mutex=4.5=2_gnu
   - amply=0.1.6=py311h06a4308_0

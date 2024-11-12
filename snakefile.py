@@ -3,6 +3,9 @@ configfile: "config/config.yaml"
 import pandas as pd
 import collections
 import os
+from pathlib import Path
+
+from pandas._libs import OutOfBoundsDatetime
 
 shell.prefix("""
     module purge
@@ -11,9 +14,17 @@ shell.prefix("""
     module load gcc/13.2.0;
 """)
 
+# Dir defined by user
+output_directory = config.get("output_directory")
+# Set as empty path if not defined meaning will not have effect
+output_directory = Path("") if output_directory is None else Path(output_directory)
+
+CWD = Path(os.getcwd())
+THIS_FILE_DIR = Path(os.path.dirname(os.path.realpath(__file__)))
+
 # Paths
-OUTDIR= "outdir_plamb" #config["outdir"] #get_config('outdir', 'outdir_plamb', r'.*') # TODO fix
-PAU_SRC_DIR = "bin/ptracker/src/workflow"  
+OUTDIR= output_directory / "outdir_plamb" #config["outdir"] #get_config('outdir', 'outdir_plamb', r'.*') # TODO fix
+PAU_SRC_DIR = THIS_FILE_DIR / "bin/ptracker/src/workflow"  
 
 # Define deault threads/walltime/mem_gb
 default_walltime = config.get("default_walltime")
@@ -38,17 +49,16 @@ mem_gb_fn  = lambda rulename: config.get(rulename, {"mem_gb": default_mem_gb}).g
 
 
 # Default values for these params
-contigs =  "data/sample_{key}/spades_{id}/contigs.fasta"
-contigs_paths =  "data/sample_{key}/spades_{id}/contigs.paths"
-assembly_graph = "data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa"
+contigs =  OUTDIR / "data/sample_{key}/spades_{id}/contigs.fasta"
+contigs_paths =  OUTDIR / "data/sample_{key}/spades_{id}/contigs.paths"
+assembly_graph = OUTDIR / "data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa"
 
 if config.get("read_file") != None:
     df = pd.read_csv(config["read_file"], sep="\s+", comment="#")
-    print(df)
     sample_id = collections.defaultdict(list)
     sample_id_path = collections.defaultdict(dict)
-    for id, read1, read2 in enumerate(zip(df.read1, df.read2)):
-        id = f"sample_{str(id)}"
+    for id, (read1, read2) in enumerate(zip(df.read1, df.read2)):
+        id = f"sample{str(id)}"
         sample = "Plamb_Ptracker"
         sample_id[sample].append(id)
         sample_id_path[sample][id] = [read1, read2]
@@ -77,20 +87,19 @@ if config.get("read_file") != None:
 
 
 if config.get("read_assembly_dir") != None:
-    df = pd.read_csv(config["read_assembly_file"], sep="\s+", comment="#")
-    print(df)
+    df = pd.read_csv(config["read_assembly_dir"], sep="\s+", comment="#")
     sample_id = collections.defaultdict(list)
     sample_id_path = collections.defaultdict(dict)
     sample_id_path_assembly = collections.defaultdict(dict)
-    for id, read1, read2, assembly, contig, contig_path in enumerate(zip( df.read1, df.read2, df.assembly_dir)):
-        id = f"sample_{str(id)}"
+    for id, (read1, read2, assembly) in enumerate(zip( df.read1, df.read2, df.assembly_dir)):
+        id = f"sample{str(id)}"
         sample = "Plamb_Ptracker"
         sample_id[sample].append(id)
         sample_id_path[sample][id] = [read1, read2]
         sample_id_path_assembly[sample][id] = [assembly]
 
     # Redefin definede paths to files
-    contigs =  lambda wildcards: Path(sample_id_path_contigpaths[wildcards.key][wildcards.id][0]) / "contigs.fasta"
+    contigs =  lambda wildcards: Path(sample_id_path_assembly[wildcards.key][wildcards.id][0]) / "contigs.fasta"
     contigs_paths =  lambda wildcards: Path(sample_id_path_assembly[wildcards.key][wildcards.id][0]) / "assembly_graph_after_simplification.gfa"
     assembly_graph =  lambda wildcards: Path(sample_id_path_assembly[wildcards.key][wildcards.id][0]) / "contigs.paths"
 
@@ -105,11 +114,13 @@ if config.get("read_assembly_dir") != None:
 #     print("-"*20)
 
 #  Define paths to the reads
-read_fw  = lambda wildcards: sample_id_path[wildcards.key][wildcards.id][0]
-read_rv = lambda wildcards: sample_id_path[wildcards.key][wildcards.id][1]
+# read_fw  = lambda wildcards: sample_id_path[wildcards.key][wildcards.id][0]
+# read_rv = lambda wildcards: sample_id_path[wildcards.key][wildcards.id][1]
 #  And to the reads after qc
-read_fw_after_fastp = "data/sample_{key}/reads_fastp/{id}_1.qc.fastq.gz" 
-read_rv_after_fastp =  "data/sample_{key}/reads_fastp/{id}_2.qc.fastq.gz"
+# read_fw_after_fastp = "data/sample_{key}/reads_fastp/{id}_1.qc.fastq.gz" 
+# read_rv_after_fastp =  "data/sample_{key}/reads_fastp/{id}_2.qc.fastq.gz"
+read_fw_after_fastp = lambda wildcards: sample_id_path[wildcards.key][wildcards.id][0]
+read_rv_after_fastp =  lambda wildcards: sample_id_path[wildcards.key][wildcards.id][1]
 
 ## Contig parameters
 CONTIGS = config.get("contigs") #get_config('contigs', 'contigs.txt', r'.*') # each line is a contigs path from a given sample
@@ -150,26 +161,39 @@ rule all:
         # expand_dir("data/sample_[key]/scapp_[value]/delete_me", sample_id)
         #expand_dir("data/sample_[key]/mp_spades_[value]/contigs.fasta", sample_id),
 
-rulename = "fastp"
-rule fastp:
-   input: 
-      fw = read_fw, 
-      rv = read_rv, 
-   output:
-      html = "data/sample_{key}/reads_fastp/{id}/report.html", # TODO insert stuff
-      json = "data/sample_{key}/reads_fastp/{id}/report.json",
-      fw = read_fw_after_fastp, 
-      rv = read_rv_after_fastp, 
-   threads: threads_fn(rulename)
-   resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-   benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
-   log: config.get("log", "log/") + "{key}_{id}_" + rulename
-   shell:
-           'bin/fastp -i {input.fw:q} -I {input.rv:q} '
-           '-o {output.fw:q} -O {output.rv:q} --html {output.html:q} --json {output.json:q} '
-           '--trim_poly_g --poly_g_min_len 7 --cut_tail --cut_front '
-           '--cut_window_size 6  '
-           '--thread {threads} 2> {log:q}'
+
+rulename = "download_genomad_db"
+rule download_genomad_db:
+    output:
+        db_geNomad= protected(THIS_FILE_DIR / "genomad_db"),
+    threads: threads_fn(rulename)
+    resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
+    conda: THIS_FILE_DIR / "envs/genomad.yaml"
+    shell:
+        """
+        genomad download-database {db_geNomad}
+        touch {output[1]}
+        """
+# rulename = "fastp"
+# rule fastp:
+#    input: 
+#       fw = read_fw, 
+#       rv = read_rv, 
+#    output:
+#       html = "data/sample_{key}/reads_fastp/{id}/report.html", # TODO insert stuff
+#       json = "data/sample_{key}/reads_fastp/{id}/report.json",
+#       fw = read_fw_after_fastp, 
+#       rv = read_rv_after_fastp, 
+#    threads: threads_fn(rulename)
+#    resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
+#    benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
+#    log: config.get("log", "log/") + "{key}_{id}_" + rulename
+#    shell:
+#            'bin/fastp -i {input.fw:q} -I {input.rv:q} '
+#            '-o {output.fw:q} -O {output.rv:q} --html {output.html:q} --json {output.json:q} '
+#            '--trim_poly_g --poly_g_min_len 7 --cut_tail --cut_front '
+#            '--cut_window_size 6  '
+#            '--thread {threads} 2> {log:q}'
 
 
 rulename = "spades"
@@ -178,10 +202,10 @@ rule spades:
        fw = read_fw_after_fastp, 
        rv = read_rv_after_fastp, 
     output:
-       outdir = directory("data/sample_{key}/spades_{id}"),
-       outfile = "data/sample_{key}/spades_{id}/contigs.fasta",
-       graph ="data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa",
-       graphinfo  = "data/sample_{key}/spades_{id}/contigs.paths",
+       outdir = directory(OUTDIR / "data/sample_{key}/spades_{id}"),
+       outfile = OUTDIR / "data/sample_{key}/spades_{id}/contigs.fasta",
+       graph = OUTDIR / "data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa",
+       graphinfo  = OUTDIR / "data/sample_{key}/spades_{id}/contigs.paths",
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
@@ -199,7 +223,7 @@ rule rename_contigs:
     input:
         contigs,
     output:
-        "data/sample_{key}/spades_{id}/contigs.renamed.fasta"
+        OUTDIR / "data/sample_{key}/spades_{id}/contigs.renamed.fasta"
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
@@ -211,24 +235,24 @@ rule rename_contigs:
 
 rulename="cat_contigs"
 rule cat_contigs:
-    input: lambda wildcards: expand("data/sample_{key}/spades_{id}/contigs.renamed.fasta", key=wildcards.key, id=sample_id[wildcards.key]),
+    input: lambda wildcards: expand(OUTDIR / "data/sample_{key}/spades_{id}/contigs.renamed.fasta", key=wildcards.key, id=sample_id[wildcards.key]),
         # expand_dir("data/sample_[key]/spades_[value]/contigs.renamed.fasta", sample_id)
-    output: "data/sample_{key}/contigs.flt.fna.gz"
+    output: OUTDIR / "data/sample_{key}/contigs.flt.fna.gz"
     threads: threads_fn(rulename)
-    params: script = "bin/vamb/src/concatenate.py"
+    params: script =  PAU_SRC_DIR / "bin/vamb/src/concatenate.py"
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}" + rulename
     log: config.get("log", "log/") + "{key}_" + rulename
-    conda: "envs/pipeline_conda.yaml"
+    conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell: 
         "python {params.script} {output} {input} 2> {log} "  # TODO should filter depending on size????
 
 rulename = "get_contig_names"
 rule get_contig_names:
     input:
-        "data/sample_{key}/contigs.flt.fna.gz"
+        OUTDIR / "data/sample_{key}/contigs.flt.fna.gz"
     output: 
-        "data/sample_{key}/contigs.names.sorted"
+        OUTDIR / "data/sample_{key}/contigs.names.sorted"
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
@@ -242,17 +266,17 @@ rule Strobealign_bam_default:
         input: 
             fw = read_fw_after_fastp,
             rv = read_rv_after_fastp,
-            contig = "data/sample_{key}/contigs.flt.fna.gz",
+            contig = OUTDIR /"data/sample_{key}/contigs.flt.fna.gz",
             # fw = lambda wildcards: sample_id_path[wildcards.key][wildcards.value][0],
             # rv = lambda wildcards: sample_id_path[wildcards.key][wildcards.value][1],
             # contig = "results/{key}/contigs.flt.fna",
         output:
-            "data/sample_{key}/mapped/{id}.bam"
+            OUTDIR / "data/sample_{key}/mapped/{id}.bam"
         threads: threads_fn(rulename)
         resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
         benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
         log: config.get("log", "log/") + "{key}_{id}_" + rulename
-        conda: "envs/strobe_env.yaml"
+        conda: THIS_FILE_DIR / "envs/strobe_env.yaml"
         shell:
             """
             # module load samtools
@@ -263,14 +287,14 @@ rule Strobealign_bam_default:
 rulename="sort"
 rule sort:
     input:
-        "data/sample_{key}/mapped/{id}.bam",
+        OUTDIR / "data/sample_{key}/mapped/{id}.bam",
     output:
-        "data/sample_{key}/mapped_sorted/{id}.bam.sort",
+        OUTDIR / "data/sample_{key}/mapped_sorted/{id}.bam.sort",
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
     log: config.get("log", "log/") + "{key}_{id}_" + rulename
-    conda: "envs/pipeline_conda.yaml"
+    conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell:
         "samtools sort {input} -o {output} "
 
@@ -294,17 +318,17 @@ rulename = "circularize"
 rule circularize:
     input:
         # dir_bams=BAMS_DIR
-        bamfiles = lambda wildcards: expand("data/sample_{key}/mapped_sorted/{id}.bam.sort", key=wildcards.key, id=sample_id[wildcards.key]),
+        bamfiles = lambda wildcards: expand(OUTDIR / "data/sample_{key}/mapped_sorted/{id}.bam.sort", key=wildcards.key, id=sample_id[wildcards.key]),
     output:
         os.path.join(OUTDIR,'{key}','tmp','circularisation','max_insert_len_%i_circular_clusters.tsv.txt'%MAX_INSERT_SIZE_CIRC),
         os.path.join(OUTDIR,'{key}','log/circularisation/circularisation.finished')
     params:
         path = os.path.join(PAU_SRC_DIR, 'src', 'circularisation.py'),
-        dir_bams = "data/sample_{key}/mapped_sorted",
+        dir_bams = OUTDIR / "data/sample_{key}/mapped_sorted",
     threads: threads_fn(rulename),
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
-    conda: "envs/pipeline_conda.yaml"
+    conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     log: config.get("log", "log/") + "{key}_" + rulename
     shell:
         """
@@ -316,7 +340,7 @@ rule circularize:
 rulename = "align_contigs"
 rule align_contigs:
     input:
-        "data/sample_{key}/contigs.flt.fna.gz",
+        OUTDIR / "data/sample_{key}/contigs.flt.fna.gz",
     output:
         os.path.join(OUTDIR,"{key}",'tmp','blastn','blastn_all_against_all.txt'),
         os.path.join(OUTDIR,"{key}",'log/blastn/align_contigs.finished')
@@ -325,7 +349,7 @@ rule align_contigs:
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
-    conda: "envs/pipeline_conda.yaml"
+    conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     log: config.get("log", "log/") + "{key}_" + rulename
     shell:
         """
@@ -350,7 +374,7 @@ rule weighted_assembly_graphs:
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
     log: config.get("log", "log/") + "{key}_{id}_" + rulename
-    conda: "envs/pipeline_conda.yaml"
+    conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell:
         """
         python {params.path} --gfa {input[0]} --paths {input[1]} -s {wildcards.id} -m {MIN_CONTIG_LEN}  --out {output[0]} 2> {log} \
@@ -388,7 +412,7 @@ rule weighted_alignment_graph:
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
     log: config.get("log", "log/") + "{key}_" + rulename
-    conda: "envs/pipeline_conda.yaml"
+    conda: OUTDIR / "envs/pipeline_conda.yaml"
     shell:
         """
         python {params.path} --blastout {input[0]} --out {output[0]} --minid 98 2> {log}
@@ -414,7 +438,7 @@ rule create_assembly_alignment_graph:
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
     log: config.get("log", "log/") + "{key}_" + rulename
-    conda: "envs/pipeline_conda.yaml"
+    conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell:
         """
         python {params.path} --graph_alignment {input.alignment_graph_file}  --graphs_assembly {input.assembly_graph_files} --out {output[0]}  2> {log}
@@ -427,7 +451,7 @@ rule n2v_assembly_alignment_graph:
     input:
         os.path.join(OUTDIR,"{key}",'tmp','assembly_alignment_graph.pkl'),
         os.path.join(OUTDIR,"{key}",'log','create_assembly_alignment_graph.finished'), 
-        contig_names_file = "data/sample_{key}/contigs.names.sorted"
+        contig_names_file = OUTDIR / "data/sample_{key}/contigs.names.sorted"
     output:
         directory(os.path.join(OUTDIR,"{key}",'tmp','n2v','assembly_alignment_graph_embeddings')),
         os.path.join(OUTDIR,"{key}",'tmp','n2v','assembly_alignment_graph_embeddings','embeddings.npz'),
@@ -439,7 +463,7 @@ rule n2v_assembly_alignment_graph:
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
     log: config.get("log", "log/") + "{key}_" + rulename
-    conda: "envs/pipeline_conda.yaml"
+    conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell:
         """
         python {params.path} -G {input[0]} --ed {N2V_ED} --nw {N2V_NW} --ws {N2V_WS} --wl {N2V_WL}\
@@ -456,7 +480,7 @@ rule extract_neighs_from_n2v_embeddings:
         os.path.join(OUTDIR,"{key}",'tmp','n2v','assembly_alignment_graph_embeddings','contigs_embedded.txt'),
         os.path.join(OUTDIR,"{key}",'log','n2v','n2v_assembly_alignment_graph.finished'),
         os.path.join(OUTDIR,"{key}",'tmp','assembly_alignment_graph.pkl'),
-        contig_names_file = "data/sample_{key}/contigs.names.sorted"
+        contig_names_file = OUTDIR / "data/sample_{key}/contigs.names.sorted"
     output:
         directory(os.path.join(OUTDIR,"{key}",'tmp','neighs')),
         os.path.join(OUTDIR,'{key}','tmp','neighs','neighs_intraonly_rm_object_r_%s.npz'%NEIGHS_R),
@@ -468,7 +492,7 @@ rule extract_neighs_from_n2v_embeddings:
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
     log: config.get("log", "log/") + "{key}_" + rulename
-    conda: "envs/pipeline_conda.yaml"
+    conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell:
         """
         which python
@@ -482,9 +506,9 @@ rulename = "run_vamb_asymmetric"
 rule run_vamb_asymmetric:
     input:
         notused = os.path.join(OUTDIR,"{key}",'log','neighs','extract_neighs_from_n2v_embeddings.finished'), # TODO why is this not used?
-        contigs = "data/sample_{key}/contigs.flt.fna.gz",
+        contigs = OUTDIR /  "data/sample_{key}/contigs.flt.fna.gz",
         # bamfiles = expand_dir("data/sample_[key]/mapped/[value].bam.sort", sample_id), 
-        bamfiles = lambda wildcards: expand("data/sample_{key}/mapped_sorted/{id}.bam.sort", key=wildcards.key, id=sample_id[wildcards.key]),
+        bamfiles = lambda wildcards: expand(OUTDIR / "data/sample_{key}/mapped_sorted/{id}.bam.sort", key=wildcards.key, id=sample_id[wildcards.key]),
         nb_file = os.path.join(OUTDIR,'{key}','tmp','neighs','neighs_intraonly_rm_object_r_%s.npz'%NEIGHS_R)
         # nb_file = os.path.join(OUTDIR,"{key}",'tmp','neighs','neighs_object_r_%s.npz'%NEIGHS_R)#,
     output:
@@ -501,10 +525,9 @@ rule run_vamb_asymmetric:
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
     log: config.get("log", "log/") + "{key}_" + rulename
-    conda: "envs/pipeline_conda.yaml"
+    conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell:
         """
-        # pip install -e /home/bxc755/rasmussen/scratch/ptracker/ptracker/bin/vamb # TODO figure out a way of working smoothly
         rmdir {output.directory}
         {PLAMB_PRELOAD}
         vamb bin vae_asy --outdir {output.directory} --fasta {input.contigs} -p {threads} --bamfiles {input.bamfiles}\
@@ -517,19 +540,19 @@ rulename = "run_geNomad"
 rule run_geNomad:
     input:
         #CONTIGS_FILE
-        "data/sample_{key}/contigs.flt.fna.gz",
+        OUTDIR / "data/sample_{key}/contigs.flt.fna.gz",
     output:
         directory(os.path.join(OUTDIR,"{key}",'tmp','geNomad')),
         os.path.join(OUTDIR,"{key}",'log/run_geNomad.finished'),
         os.path.join(OUTDIR,"{key}",'tmp','geNomad','contigs.flt_aggregated_classification','contigs.flt_aggregated_classification.tsv')
     params:
-        db_geNomad="genomad_db",
+        db_geNomad= THIS_FILE_DIR / "genomad_db",
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
     log: config.get("log", "log/") + "{key}_" + rulename
     # conda: "envs/pipeline_conda.yaml"
-    conda: "envs/genomad.yaml"
+    conda: THIS_FILE_DIR / "envs/genomad.yaml"
     shell:
         """
         genomad end-to-end --cleanup {input} {output[0]}   {params.db_geNomad} --threads {threads}
@@ -553,7 +576,7 @@ rule merge_circular_with_graph_clusters:
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
     log: config.get("log", "log/") + "{key}_" + rulename
-    conda: "envs/pipeline_conda.yaml"
+    conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell:
         """
         python {params.path} --cls_plamb {input.vae_clusters} --cls_circular {input[2]} --outcls {output[0]}
@@ -568,7 +591,7 @@ rule classify_bins_with_geNomad:
         os.path.join(OUTDIR,"{key}",'log/run_vamb_asymmetric.finished'),
         os.path.join(OUTDIR,"{key}",'log/run_geNomad.finished'),
         os.path.join(OUTDIR,"{key}",'vamb_asymmetric','vae_clusters_unsplit.tsv'),
-        contignames = "data/sample_{key}/contigs.names.sorted",
+        contignames = OUTDIR / "data/sample_{key}/contigs.names.sorted",
         lengths = os.path.join(OUTDIR,"{key}",'vamb_asymmetric','lengths.npz'),
         comm_clusters = os.path.join(OUTDIR,'{key}','vamb_asymmetric','vae_clusters_community_based_complete_and_circular_unsplit.tsv'),
         composition = os.path.join(OUTDIR,'{key}','vamb_asymmetric','composition.npz'),
@@ -583,7 +606,7 @@ rule classify_bins_with_geNomad:
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
     log: config.get("log", "log/") + "{key}_" + rulename
     # conda: "envs/genomad.yaml"
-    conda: "envs/pipeline_conda.yaml"
+    conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell:
         """
         python {params.path} --clusters {input.comm_clusters} \
@@ -649,70 +672,70 @@ rule classify_bins_with_geNomad:
 
 ## EXTRA FOR TESTING 
 
-rulename = "VAMB_DEFAULT"
-rule VAMB_DEFAULT:
-    input: 
-        contig = "data/sample_{key}/contigs.flt.fna.gz",
-        bamfiles = lambda wildcards: expand("data/sample_{key}/mapped_sorted/{id}.bam.sort", key=wildcards.key, id=sample_id[wildcards.key]),
-    output:
-        dir = directory("data/sample_{key}/vamb_default"),
-    threads: threads_fn(rulename)
-    resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-    benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
-    log: config.get("log", "log/") + "{key}_" + rulename
-    shell:
-        """
-        rm -rf {output.dir} 
-        vamb bin default --outdir {output.dir} --fasta {input.contig} \
-        -p {threads} --bamfiles {input.bamfiles} -m 2000 
-        """
+# rulename = "VAMB_DEFAULT"
+# rule VAMB_DEFAULT:
+#     input: 
+#         contig = "data/sample_{key}/contigs.flt.fna.gz",
+#         bamfiles = lambda wildcards: expand("data/sample_{key}/mapped_sorted/{id}.bam.sort", key=wildcards.key, id=sample_id[wildcards.key]),
+#     output:
+#         dir = directory("data/sample_{key}/vamb_default"),
+#     threads: threads_fn(rulename)
+#     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
+#     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
+#     log: config.get("log", "log/") + "{key}_" + rulename
+#     shell:
+#         """
+#         rm -rf {output.dir} 
+#         vamb bin default --outdir {output.dir} --fasta {input.contig} \
+#         -p {threads} --bamfiles {input.bamfiles} -m 2000 
+#         """
 
 
-rulename = "SCAPP"
-rule SCAPP:
-    input: 
-        graph = "data/sample_{key}/spades_{id}/assembly_graph.fastg",
-        fw = read_fw_after_fastp, 
-        rv = read_rv_after_fastp, 
-        # graph_align = "data/sample_{key}/old_scapp/scapp_{id}/assembly_graph.confident_cycs.fasta/intermediate_files/reads_pe_primary.sort.bam", 
-    output:
-        # scapp makes a directory first and the changes it to a file which is the output. This confuses
-        # snakemakes due it either looking for a directory or a file and then stopping the job
-        # Therefore need to look for a temp, file which is made when the job is done..
-        fake_output = "data/sample_{key}/scapp_{id}/delete_me"
-    params:
-        true_output = "data/sample_{key}/scapp_{id}/assembly_graph.confident_cycs.fasta", 
-    threads: threads_fn(rulename)
-    resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-    benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
-    log: config.get("log", "log/") + "{key}_{id}_" + rulename
-    conda: "envs/install_scapp.yaml"
-    shell:
-        """
-        scapp -g {input.graph} -o {params.true_output} -r1 {input.fw} -r2 {input.rv} -p {threads}
-        touch {output.fake_output}
-        """
-# Expected output file
-# fd assembly_graph.confident_cycs.fasta -t f
-# scapp_13/assembly_graph.confident_cycs.fasta/assembly_graph.confident_cycs.fasta
+# rulename = "SCAPP"
+# rule SCAPP:
+#     input: 
+#         graph = "data/sample_{key}/spades_{id}/assembly_graph.fastg",
+#         fw = read_fw_after_fastp, 
+#         rv = read_rv_after_fastp, 
+#         # graph_align = "data/sample_{key}/old_scapp/scapp_{id}/assembly_graph.confident_cycs.fasta/intermediate_files/reads_pe_primary.sort.bam", 
+#     output:
+#         # scapp makes a directory first and the changes it to a file which is the output. This confuses
+#         # snakemakes due it either looking for a directory or a file and then stopping the job
+#         # Therefore need to look for a temp, file which is made when the job is done..
+#         fake_output = "data/sample_{key}/scapp_{id}/delete_me"
+#     params:
+#         true_output = "data/sample_{key}/scapp_{id}/assembly_graph.confident_cycs.fasta", 
+#     threads: threads_fn(rulename)
+#     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
+#     benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
+#     log: config.get("log", "log/") + "{key}_{id}_" + rulename
+#     conda: "envs/install_scapp.yaml"
+#     shell:
+#         """
+#         scapp -g {input.graph} -o {params.true_output} -r1 {input.fw} -r2 {input.rv} -p {threads}
+#         touch {output.fake_output}
+#         """
+# # Expected output file
+# # fd assembly_graph.confident_cycs.fasta -t f
+# # scapp_13/assembly_graph.confident_cycs.fasta/assembly_graph.confident_cycs.fasta
 
 
-rulename = "mpSpades"
-rule mpSpades:
-        input: 
-            fw = read_fw_after_fastp, 
-            rv = read_rv_after_fastp, 
-        output:
-            outdir = directory("data/sample_{key}/mp_spades_{id}"),
-            outfile = "data/sample_{key}/mp_spades_{id}/contigs.fasta",
-        threads: threads_fn(rulename)
-        resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-        benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
-        log: config.get("log", "log/") + "{key}_{id}_" + rulename
-        shell:
-            """
-            rm -rf {output.outdir}
-            /maps/projects/rasmussen/scratch/ptracker/run_mp_spades/bin/SPades-4/SPAdes-4.0.0-Linux/bin/metaplasmidspades.py --phred-offset 33 -o {output.outdir} -1 {input.fw} -2 {input.rv} \
-            > {log}
-            ## bin/SPAdes-3.15.4-Linux/bin/metaplasmidspades.py --phred-offset 33 -o {output.outdir} -1 {input.fw} -2 {input.rv} \
-            """
+# rulename = "mpSpades"
+# rule mpSpades:
+#         input: 
+#             fw = read_fw_after_fastp, 
+#             rv = read_rv_after_fastp, 
+#         output:
+#             outdir = directory("data/sample_{key}/mp_spades_{id}"),
+#             outfile = "data/sample_{key}/mp_spades_{id}/contigs.fasta",
+#         threads: threads_fn(rulename)
+#         resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
+#         benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
+#         log: config.get("log", "log/") + "{key}_{id}_" + rulename
+#         shell:
+#             """
+#             rm -rf {output.outdir}
+#             /maps/projects/rasmussen/scratch/ptracker/run_mp_spades/bin/SPades-4/SPAdes-4.0.0-Linux/bin/metaplasmidspades.py --phred-offset 33 -o {output.outdir} -1 {input.fw} -2 {input.rv} \
+#             > {log}
+#             ## bin/SPAdes-3.15.4-Linux/bin/metaplasmidspades.py --phred-offset 33 -o {output.outdir} -1 {input.fw} -2 {input.rv} \
+#             """
