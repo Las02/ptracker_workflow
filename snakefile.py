@@ -37,6 +37,7 @@ mem_gb_fn  = lambda rulename: config.get(rulename, {"mem_gb": default_mem_gb}).g
 # Read in the sample data
 
 
+# Default values for these params
 contigs =  "data/sample_{key}/spades_{id}/contigs.fasta"
 contigs_paths =  "data/sample_{key}/spades_{id}/contigs.paths"
 assembly_graph = "data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa"
@@ -69,11 +70,29 @@ if config.get("read_assembly_file") != None:
         sample_id_path_contig[sample][id] = [contig]
         sample_id_path_contigpaths [sample][id] = [contig_path]
 
+    # Redefin definede paths to files
     contigs =  lambda wildcards: sample_id_path_contig[wildcards.key][wildcards.id][0] 
     contigs_paths =  lambda wildcards: sample_id_path_contigpaths[wildcards.key][wildcards.id][0] 
     assembly_graph =  lambda wildcards: sample_id_path_assembly[wildcards.key][wildcards.id][0] 
 
 
+if config.get("read_assembly_dir") != None:
+    df = pd.read_csv(config["read_assembly_file"], sep="\s+", comment="#")
+    print(df)
+    sample_id = collections.defaultdict(list)
+    sample_id_path = collections.defaultdict(dict)
+    sample_id_path_assembly = collections.defaultdict(dict)
+    for id, read1, read2, assembly, contig, contig_path in zip(df["sample"], df.read1, df.read2, df.assembly_dir):
+        id = str(id)
+        sample = "Plamb_Ptracker"
+        sample_id[sample].append(id)
+        sample_id_path[sample][id] = [read1, read2]
+        sample_id_path_assembly[sample][id] = [assembly]
+
+    # Redefin definede paths to files
+    contigs =  lambda wildcards: Path(sample_id_path_contigpaths[wildcards.key][wildcards.id][0]) / "contigs.fasta"
+    contigs_paths =  lambda wildcards: Path(sample_id_path_assembly[wildcards.key][wildcards.id][0]) / "assembly_graph_after_simplification.gfa"
+    assembly_graph =  lambda wildcards: Path(sample_id_path_assembly[wildcards.key][wildcards.id][0]) / "contigs.paths"
 
 # # Print out run information
 # print("Running for the following:")

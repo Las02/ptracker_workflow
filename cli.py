@@ -221,6 +221,27 @@ Passing in this file means that the pipeline will be run from the start, meaning
     ),
 )
 @click.option(
+    "--reads_and_assembly_dir",
+    help=f"""\bWhite space seperated file containing read pairs, sample names and paths to a Spades assembly directory 
+<Notice the header names are required to be: sample, read1, read2, assembly_dir>
+This file could look like:  
+sample                 read1                     read2                  
+sample1_identifier     path/to/sample_1/read1    path/to/sample_1/read2
+sample2_identifier     path/to/sample_2/read1    path/to/sample_2/read2
+Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
+        """,
+    type=wss_file(
+        Logger(),
+        expected_headers=[
+            "sample",
+            "read1",
+            "read2",
+            "assembly_dir",
+        ],
+        none_file_columns=["sample"],
+    ),
+)
+@click.option(
     "--reads_and_assembly",
     help=f"""\bWhite space seperated file containing read pairs, sample names and paths to assembly files
 <Notice the header names are required to be: 
@@ -251,7 +272,7 @@ Passing in this file means that the pipeline will not assemble the reads but run
 @click.option("--dryrun", help="Run a dryrun", is_flag=True)
 # @click.option("--r1", cls=OptionEatAll, type=List_of_files())
 # @click.option("--r2", cls=OptionEatAll, type=List_of_files())
-def main(setup_env, reads, reads_and_assembly, threads, dryrun):
+def main(setup_env, reads, reads_and_assembly, threads, dryrun, reads_and_assembly_dir):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
     The first time running the program it will try to install the genomad database (~3.1 G) and required scripts.
