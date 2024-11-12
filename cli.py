@@ -174,11 +174,17 @@ class environment_setupper:
                 "It seems the environment has not been setup run --setup_env to set up the environment"
             )
         if not self.ptracker_exist:
-            raise click.UsageError(f"Could not find the plamb ptracker directory, try running the tool with --setup-env")
+            raise click.UsageError(
+                f"Could not find the plamb ptracker directory, try running the tool with --setup-env"
+            )
         if not self.plamb_exist:
-            raise click.UsageError(f"Could not find the plamb directory, try running the tool with --setup-env")
+            raise click.UsageError(
+                f"Could not find the plamb directory, try running the tool with --setup-env"
+            )
         if not self.genomad_db_exist:
-            raise click.UsageError(f"Could not find the genomad database, try running the tool with --setup-env")
+            raise click.UsageError(
+                f"Could not find the genomad database, try running the tool with --setup-env"
+            )
 
 
 class List_of_files(click.ParamType):
@@ -193,14 +199,20 @@ class List_of_files(click.ParamType):
 
 @click.command()
 # @click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
-@click.option("--dryrun", help="run a dryrun", is_flag=True)
-@click.option("--setup_env", help="Setup enviornment", is_flag=True)
-@click.option(
-    "--threads", help="threads to run the application with", type=int, default=1
-)
+@click.option("--setup_env", help="Setup environment", is_flag=True)
 @click.option(
     "--reads",
-    help="white space seperated file containing read pairs",
+    help="""\bWhite space seperated file containing read pairs and sample names.
+<Notice the header names are required to be: sample, read1 and read2>
+This file could look like:
+```
+sample                 read1                     read2
+sample1_identifier     path/to/sample_1/read1    path/to/sample_1/read2
+sample2_identifier     path/to/sample_2/read1    path/to/sample_2/read2
+```
+Passing in this file means that the pipeline will be run from the start, meaning it will also assemble the reads.
+
+""",
     type=wss_file(
         Logger(),
         expected_headers=["sample", "read1", "read2"],
@@ -209,7 +221,11 @@ class List_of_files(click.ParamType):
 )
 @click.option(
     "--reads_and_assembly",
-    help="white space seperated file containing read pairs and assembly",
+    help=f"""\bWhite space seperated file containing read pairs, sample names and paths to assembly files
+<Notice the header names are required to be: sample, read1, read2, assembly_graph, contig and contig_paths>
+This file could look like: 
+Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
+        """,
     type=wss_file(
         Logger(),
         expected_headers=[
@@ -223,9 +239,21 @@ class List_of_files(click.ParamType):
         none_file_columns=["sample"],
     ),
 )
+@click.option(
+    "--threads",
+    help="Number of threads to run the application with",
+    type=int,
+    default=1,
+)
+@click.option("--dryrun", help="Run a dryrun", is_flag=True)
 # @click.option("--r1", cls=OptionEatAll, type=List_of_files())
 # @click.option("--r2", cls=OptionEatAll, type=List_of_files())
-def main(dryrun, setup_env, reads, reads_and_assembly, threads):
+def main(setup_env, reads, reads_and_assembly, threads, dryrun):
+    """
+    This is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
+    Before running the program for the first time please run --setup-env to install the genomad database
+    and required scripts. For Quick Start please see the README: https://github.com/Las02/ptracker_workflow/tree/try_cli
+    """
     logger = Logger()
 
     # Set up the environment
@@ -236,27 +264,28 @@ def main(dryrun, setup_env, reads, reads_and_assembly, threads):
     # Check if the environment is setup correctly
     environment_setupper(logger).check_if_everything_is_setup()
 
-    if reads_and_assembly != None and reads != None:
+    if reads_and_assembly is not None and reads is not None:
         raise click.BadParameter(
             "Both --reads_and_assembly and --reads are used, only use one of them",
         )
-    if reads_and_assembly == None and reads == None:
+    if reads_and_assembly is None and reads is None:
         raise click.BadParameter(
             "Neither --reads_and_assembly and --reads are used, please define one of them",
         )
 
     snakemake_runner = Snakemake_runner(logger)
     snakemake_runner.add_arguments(["-c", str(threads)])
+    to_print_while_running_snakemake = None
 
     # Run the pipeline from the reads, meaning the pipeline will assemble the reads beforehand
-    if reads != None:
+    if reads is not None:
         snakemake_runner.add_arguments(["--config", f"read_file={reads}"])
         to_print_while_running_snakemake = (
             f"running snakemake with {threads} thread(s), from paired reads"
         )
 
     # Run the pipeline from the reads and the assembly graphs
-    if reads_and_assembly != None:
+    if reads_and_assembly is not None:
         snakemake_runner.add_arguments(
             ["--config", f"read_assembly_file={reads_and_assembly}"]
         )
@@ -270,7 +299,11 @@ def main(dryrun, setup_env, reads, reads_and_assembly, threads):
 
 
 if __name__ == "__main__":
-    main()
+    # Print --help if no arguments are passed in
+    if len(sys.argv) == 1:
+        main(["--help"])
+    else:
+        main()
 
     #    status = snakemake.snakemake(snakefile, configfile=paramsfile,
     #                              targets=[target], printshellcmds=True,

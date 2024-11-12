@@ -23,10 +23,9 @@ This file could look like:
 ``` 
 sample                        read1                          read2
 im_the_sample1_identifier     im/a/path/to/sample_1/read1    im/a/path/to/sample_1/read2
-im_the_sample1_identifier     im/a/path/to/sample_2/read1    im/a/path/to/sample_2/read2
+im_the_sample2_identifier     im/a/path/to/sample_2/read1    im/a/path/to/sample_2/read2
 ```
 To dry run the pipeline before pass in the --dryrun flag
-
 
 
 To run the pipeline from allready assembled reads pass in a whitespace seperated file containing the reads and additionally
@@ -41,7 +40,7 @@ This file could look like:
 ``` 
 sample                        read1                          read2                         assembly_graph                                           contig                                      contig_paths
 im_the_sample1_identifier     im/a/path/to/sample_1/read1    im/a/path/to/sample_1/read2   sample1/sample1/assembly_graph_after_simplification.gfa  sample1/contigs.fasta sample1/contigs.paths sample1/contigs.paths
-im_the_sample1_identifier     im/a/path/to/sample_2/read1    im/a/path/to/sample_2/read2   sample2/assembly_graph_after_simplification.gfa          sample2/contigs.fasta sample2/contigs.paths sample1/contigs.paths
+im_the_sample2_identifier     im/a/path/to/sample_2/read1    im/a/path/to/sample_2/read2   sample2/assembly_graph_after_simplification.gfa          sample2/contigs.fasta sample2/contigs.paths sample1/contigs.paths
 ```
 
 
