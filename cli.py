@@ -91,7 +91,7 @@ class Cli_runner:
         else:
             print("Running:")
             self.prettyprint_args()
-            subprocess.run(self.argument_holder)
+            subprocess.run(self.argument_holder) 
             print("Ran:")
             self.prettyprint_args()
 
@@ -129,13 +129,16 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
         self.config_options += [to_add]
 
     def run(self):
+
+        # use conda: always
+        self.add_arguments(["--use-conda"])
+
         self.add_to_config(f"output_directory={self.output_directory}")
+        self.add_to_config(f"this_file={self.dir_of_current_file}")
         # Add config options
         self.add_arguments((["--config"] + self.config_options))
         # Log
         self.logger.print(self.to_print_while_running_snakemake)
-        # use conda: always
-        snakemake_runner.add_arguments(["--use-conda"])
         # Run
         super().run()
 
@@ -168,12 +171,13 @@ class environment_setupper:
             f"Installing Genomad database (~3.1 GB) to {self.genomad_dir}"
         )
         snakemake_runner = Snakemake_runner(self.logger)
-        # Set target rule to genomad_db to create the database
-        snakemake_runner.add_arguments(["download_genomad_db"])
         # Download the directory in the location of the current file
         snakemake_runner.add_arguments(["--directory", self.dir_of_current_file])
         # Use conda as the genomad and therefore the genomad environment needs to be used
         snakemake_runner.add_arguments(["--use-conda"])
+        snakemake_runner.add_arguments(["-c", "1"])
+        # Set target rule to genomad_db to create the database
+        snakemake_runner.add_arguments(["download_genomad_db"])
         snakemake_runner.run()
 
     def install_conda_environments(self):
@@ -222,16 +226,16 @@ class environment_setupper:
             return False
         if not self.ptracker_exist:
             raise click.UsageError(
-                f"Could not find the plamb ptracker directory, try running the tool with --setup-env"
+                f"Could not find the plamb ptracker directory, try running the tool with --setup_env"
             )
         if not self.plamb_exist:
             raise click.UsageError(
-                f"Could not find the plamb directory, try running the tool with --setup-env"
+                f"Could not find the plamb directory, try running the tool with --setup_env"
             )
 
         if not self.genomad_db_exist:
             raise click.UsageError(
-                f"Could not find the genomad database, try running the tool with --setup-env"
+                f"Could not find the genomad database, try running the tool with --setup_env"
             )
         return True
 

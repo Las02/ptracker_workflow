@@ -19,8 +19,8 @@ output_directory = config.get("output_directory")
 # Set as empty path if not defined meaning will not have effect
 output_directory = Path("") if output_directory is None else Path(output_directory)
 
-CWD = Path(os.getcwd())
-THIS_FILE_DIR = Path(os.path.dirname(os.path.realpath(__file__)))
+THIS_FILE_DIR =config.get("this_file")
+THIS_FILE_DIR = Path("") if THIS_FILE_DIR is None else Path(THIS_FILE_DIR)
 
 # Paths
 OUTDIR= output_directory / "outdir_plamb" #config["outdir"] #get_config('outdir', 'outdir_plamb', r'.*') # TODO fix
@@ -52,6 +52,9 @@ mem_gb_fn  = lambda rulename: config.get(rulename, {"mem_gb": default_mem_gb}).g
 contigs =  OUTDIR / "data/sample_{key}/spades_{id}/contigs.fasta"
 contigs_paths =  OUTDIR / "data/sample_{key}/spades_{id}/contigs.paths"
 assembly_graph = OUTDIR / "data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa"
+
+sample_id = {}
+sample_id_path = {}
 
 if config.get("read_file") != None:
     df = pd.read_csv(config["read_file"], sep="\s+", comment="#")

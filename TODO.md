@@ -4,5 +4,7 @@
 - What about the module loads at the top of snakefile.py:10
 - Make pau make his rep public
 
+- running not default shells gives wierd conda --json thingy with snakemake
+
 
 
