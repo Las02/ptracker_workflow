@@ -108,6 +108,7 @@ class Snakemake_runner(Cli_runner):
         self.add_command_to_run(self.snakemake_path)
         self.snakefile_path = Path(Path(self.dir_of_current_file) / snakefile)
         self.add_arguments(["--snakefile", self.snakefile_path])
+        self.add_arguments(["--rerun-triggers", "mtime"])
         self.validate_paths()
         # default to run snakemake in current directory
         self.logger = logger
@@ -134,11 +135,12 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
         self.add_arguments(["--use-conda"])
 
         self.add_to_config(f"output_directory={self.output_directory}")
-        self.add_to_config(f"this_file={self.dir_of_current_file}")
+        self.add_to_config(f"dir_of_current_file={self.dir_of_current_file}")
         # Add config options
         self.add_arguments((["--config"] + self.config_options))
         # Log
-        self.logger.print(self.to_print_while_running_snakemake)
+        if self.to_print_while_running_snakemake is not None:
+            self.logger.print(self.to_print_while_running_snakemake)
         # Run
         super().run()
 

@@ -1,8 +1,0 @@
-name: genomad
-channels:
-  - bioconda
-  - conda-forge
-  - defaults
-
-dependencies:
-  - pyyaml

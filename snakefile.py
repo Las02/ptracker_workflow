@@ -19,7 +19,7 @@ output_directory = config.get("output_directory")
 # Set as empty path if not defined meaning will not have effect
 output_directory = Path("") if output_directory is None else Path(output_directory)
 
-THIS_FILE_DIR =config.get("this_file")
+THIS_FILE_DIR =config.get("dir_of_current_file")
 THIS_FILE_DIR = Path("") if THIS_FILE_DIR is None else Path(THIS_FILE_DIR)
 
 # Paths
@@ -169,13 +169,13 @@ rulename = "download_genomad_db"
 rule download_genomad_db:
     output:
         db_geNomad= protected(THIS_FILE_DIR / "genomad_db"),
+        db_geNomad= protected(THIS_FILE_DIR / "genomad_db"),
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     conda: THIS_FILE_DIR / "envs/genomad.yaml"
     shell:
         """
-        genomad download-database {db_geNomad}
-        touch {output[1]}
+        genomad download-database {output.db_geNomad}
         """
 # rulename = "fastp"
 # rule fastp:
