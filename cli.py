@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Import rich_click if installed else default to click.
+# If none are installed write errormessage
 try:
     import rich_click as click
 
@@ -27,6 +29,7 @@ try:
             },
         ],
     }
+    click.rich_click.USE_RICH_MARKUP = True
 except ModuleNotFoundError as e:
     try:
         import click
@@ -35,8 +38,6 @@ except ModuleNotFoundError as e:
 either of modueles eg. using conda or pip. See the user guide on the github README.\n""")
         raise e
 
-
-from os.path import exists
 
 from pandas.core.generic import config
 from return_all import *
@@ -47,38 +48,27 @@ from pathlib import Path
 import shutil
 from typing import List
 
-# click.rich_click.USE_RICH_MARKUP = True
 
-# both -h and --help avalible instead of just --help
+# Make both -h and --help available instead of just --help
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
 class Logger:
     def print(self, arg):
-        # click.echo(arg)
         click.echo(click.style(arg, fg="yellow"))
     def warn(self, arg):
         click.echo(click.style("WARNING:   " + arg, fg="red", underline = True))
 
 
-# Snakemake should handle genomad download
-# Only downloading conda envs
-# snakemake --use-conda --conda-create-envs-only -c4 --conda-frontend conda
-# genomad database download?
-
-
-# def validate_paths(self):
-#
-
-
 class Cli_runner:
     argument_holder = []
+    _command_has_been_added = False
 
     def add_command_to_run(self, command_to_run):
+        if _command_has_been_added:
+            raise Exception(f"A command has allready been added: {self.argument_holder[0]}")
         self.argument_holder = [command_to_run] + self.argument_holder
-
-    # def add_argument(self, argument, command=""):
-    #     self.argument_holder += [argument, command]
+        _command_has_been_added = True
 
     def add_arguments(self, arguments: List):
         self.argument_holder += arguments
