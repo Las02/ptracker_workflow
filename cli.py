@@ -134,6 +134,7 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
 
         # use conda: always
         self.add_arguments(["--use-conda"])
+        self.add_arguments(["--rerun-incomplete"])
 
         self.add_to_config(f"output_directory={self.output_directory}")
         self.add_to_config(f"dir_of_current_file={self.dir_of_current_file}")
@@ -315,7 +316,7 @@ Passing in this file means that the pipeline will not assemble the reads but run
 @click.option(
     "-e",
     "--setup_env",
-    help="Setup environment, this will be done automatically the first time the application is ran",
+    help="Setup environment, this will be done automatically the first time the application is run",
     is_flag=True,
 )
 @click.option(

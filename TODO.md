@@ -7,4 +7,8 @@
 - running not default shells gives wierd conda --json thingy with snakemake
 
 
+- Genomad download option to give path
+
+- Snakemake running it from CMD. - clustersubmission like Avamb workflow
+
 

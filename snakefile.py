@@ -10,12 +10,12 @@ from pathlib import Path
 
 from pandas._libs import OutOfBoundsDatetime
 
-shell.prefix("""
-    module purge
-    module unload gcc/13.2.0
-    module unload gcc/12.2.0
-    module load gcc/13.2.0;
-""")
+# shell.prefix("""
+#     module purge
+#     module unload gcc/13.2.0
+#     module unload gcc/12.2.0
+#     module load gcc/13.2.0;
+# """)
 
 # Dir defined by user
 output_directory = config.get("output_directory")
@@ -170,7 +170,7 @@ rulename = "download_genomad_db"
 rule download_genomad_db:
     output:
         dir_geNomad_db = directory(THIS_FILE_DIR / "genomad_db"),
-        geNomad_db = directory(THIS_FILE_DIR / "genomad_db" / "genomad_db"),
+        geNomad_db = protected(THIS_FILE_DIR / "genomad_db" / "genomad_db" / "genomad_db"),
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     conda: THIS_FILE_DIR / "envs/genomad.yaml"
