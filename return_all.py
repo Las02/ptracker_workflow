@@ -147,8 +147,10 @@ class wss_file(click.ParamType):
         self.logger.print(
             f"\nRead in the following sample list from '{value}' using flag '--{param.human_readable_name}':"
         )
-        # self.logger.print(df.to_markdown(index=False))
-        self.logger.print(df)
+
+        # TODO Make it such that long files are not formatted wierd
+        self.logger.print(df.to_markdown(index=False))
+        # self.logger.print(df)
         self.logger.print("")
         return value
 

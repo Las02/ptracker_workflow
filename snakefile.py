@@ -1,4 +1,7 @@
-configfile: "config/config.yaml"
+THIS_FILE_DIR =config.get("dir_of_current_file")
+THIS_FILE_DIR = Path("") if THIS_FILE_DIR is None else Path(THIS_FILE_DIR)
+
+configfile: THIS_FILE_DIR / "config/config.yaml"
 
 import pandas as pd
 import collections
@@ -19,8 +22,6 @@ output_directory = config.get("output_directory")
 # Set as empty path if not defined meaning will not have effect
 output_directory = Path("") if output_directory is None else Path(output_directory)
 
-THIS_FILE_DIR =config.get("dir_of_current_file")
-THIS_FILE_DIR = Path("") if THIS_FILE_DIR is None else Path(THIS_FILE_DIR)
 
 # Paths
 OUTDIR= output_directory / "outdir_plamb" #config["outdir"] #get_config('outdir', 'outdir_plamb', r'.*') # TODO fix
@@ -168,14 +169,15 @@ rule all:
 rulename = "download_genomad_db"
 rule download_genomad_db:
     output:
-        db_geNomad= protected(THIS_FILE_DIR / "genomad_db"),
-        db_geNomad= protected(THIS_FILE_DIR / "genomad_db"),
+        dir_geNomad_db = directory(THIS_FILE_DIR / "genomad_db"),
+        geNomad_db = directory(THIS_FILE_DIR / "genomad_db" / "genomad_db"),
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     conda: THIS_FILE_DIR / "envs/genomad.yaml"
     shell:
         """
-        genomad download-database {output.db_geNomad}
+        mkdir -p {output.dir_geNomad_db}
+        genomad download-database {output.dir_geNomad_db}
         """
 # rulename = "fastp"
 # rule fastp:
@@ -417,7 +419,7 @@ rule weighted_alignment_graph:
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
     log: config.get("log", "log/") + "{key}_" + rulename
-    conda: OUTDIR / "envs/pipeline_conda.yaml"
+    conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell:
         """
         python {params.path} --blastout {input[0]} --out {output[0]} --minid 98 2> {log}

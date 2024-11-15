@@ -109,6 +109,7 @@ class Snakemake_runner(Cli_runner):
         self.snakefile_path = Path(Path(self.dir_of_current_file) / snakefile)
         self.add_arguments(["--snakefile", self.snakefile_path])
         self.add_arguments(["--rerun-triggers", "mtime"])
+        self.add_arguments(["--nolock"])
         self.validate_paths()
         # default to run snakemake in current directory
         self.logger = logger
@@ -369,13 +370,13 @@ def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output):
     if reads is not None:
         snakemake_runner.add_to_config(f"read_file={reads}")
         snakemake_runner.to_print_while_running_snakemake = (
-            f"running snakemake with {threads} thread(s), from paired reads"
+            f"Running snakemake with {threads} thread(s), from paired reads"
         )
 
     # Run the pipeline from the reads and the assembly graphs
     if reads_and_assembly_dir is not None:
         snakemake_runner.add_to_config(f"read_assembly_dir={reads_and_assembly_dir}")
-        snakemake_runner.to_print_while_running_snakemake = f"running snakemake with {threads} thread(s), from paired reads and assembly graph"
+        snakemake_runner.to_print_while_running_snakemake = f"Running snakemake with {threads} thread(s), from paired reads and assembly graph"
 
     if dryrun:
         snakemake_runner.add_arguments(["-n"])
