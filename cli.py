@@ -57,6 +57,8 @@ class Logger:
     def print(self, arg):
         # click.echo(arg)
         click.echo(click.style(arg, fg="yellow"))
+    def warn(self, arg):
+        click.echo(click.style("WARNING:   " + arg, fg="red", underline = True))
 
 
 # Snakemake should handle genomad download
@@ -110,9 +112,9 @@ class Snakemake_runner(Cli_runner):
         self.add_arguments(["--snakefile", self.snakefile_path])
         self.add_arguments(["--rerun-triggers", "mtime"])
         self.add_arguments(["--nolock"])
+        self.logger = logger
         self.validate_paths()
         # default to run snakemake in current directory
-        self.logger = logger
         # Config needs to be added in a special way
 
     def validate_paths(self):
@@ -126,6 +128,13 @@ class Snakemake_runner(Cli_runner):
                 """Could not find snakemake, is it installed?
 See following installation guide: https://snakemake.readthedocs.io/en/stable/getting_started/installation.html"""
             )
+
+        if shutil.which('mamba') is None:
+            self.logger.warn("Could not find mamba installation, is the correct environment activated?")
+            self.logger.warn("Defaulting to use conda to build environments for snakemake, this will be slower")
+            self.add_arguments(["--conda-frontend", "conda"])
+
+
 
     def add_to_config(self, to_add):
         self.config_options += [to_add]
