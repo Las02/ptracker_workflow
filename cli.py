@@ -125,7 +125,6 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
             self.add_arguments(["--conda-frontend", "conda"])
 
 
-
     def add_to_config(self, to_add):
         self.config_options += [to_add]
 
