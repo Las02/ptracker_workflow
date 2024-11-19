@@ -1,0 +1,14 @@
+name: vamb_env
+
+channels:
+  - pytorch
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  - python==3.9.0
+  - pip
+  # Notice pip should be at the bottom of dependencies ATM. TODO fix this
+  - pip:
+      - -e /home/bxc755/rasmussen/scratch/ptracker/ptracker/bin/vamb

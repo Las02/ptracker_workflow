@@ -45,6 +45,7 @@ either of modueles eg. using conda or pip. See the user guide on the github READ
         raise e
 
 
+import yaml
 from pandas.core.generic import config
 from return_all import *
 import os
@@ -165,7 +166,7 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
         super().run()
 
 
-class environment_setupper:
+class Environment_setupper:
     def __init__(self, logger: Logger):
         self.dir_of_current_file = Path(os.path.dirname(os.path.realpath(__file__)))
         self.git_path = shutil.which("git")
@@ -182,34 +183,28 @@ class environment_setupper:
         self.plamb_exist = self.plamb_dir.exists()
         self.genomad_db_exist = (self.genomad_dir).exists()
 
+    def create_conda_env_yaml(self, refhash: str, branch: str) -> Path:
+        vamb_location = (
+            self.dir_of_current_file / "bin" / f"vamb_branch_{branch}_commit_{refhash}"
+        )
+        with open(self.dir_of_current_file / "envs" / "vamb_env.yaml", "r") as in_file:
+            # Set up yaml to build env with correct vamb version
+            yaml_vamb_env = yaml.safe_load(in_file)
+            # TODO add way to safely rename pip dependencies without it having to be the last element
+            yaml_vamb_env["dependencies"][-1]["pip"] = ["-e", str(vamb_location)]
+            yaml_vamb_env["name"] = str(yaml_vamb_env["name"] + f"_{refhash}")
+            # Write the yaml file
+            out_file_path = f"{self.dir_of_current_file}/envs/vamb_branch_{branch}_commit_{refhash}.yaml"
+            with open(out_file_path, "w") as out_file:
+                yaml.dump(yaml_vamb_env, out_file)
+        return Path(out_file_path)
+
     def run_git(self, cli, cwd=None):
         git_cli_runner = Cli_runner()
         git_cli_runner.add_command_to_run(self.git_path)
         git_cli_runner.add_arguments(cli)
         git_cli_runner.cwd(cwd)
         git_cli_runner.run()
-
-    # def clone_directory(self, cli, cwd=None):
-    #     raise Error("deprecated")
-    #     git_cli_runner = Cli_runner()
-    #     git_cli_runner.add_command_to_run(self.git_path)
-    #     git_cli_runner.add_arguments(cli)
-    #     git_cli_runner.cwd(cwd)
-    #     git_cli_runner.run()
-
-    def install_genomad_db(self):
-        self.logger.print(
-            f"Installing Genomad database (~3.1 GB) to {self.genomad_dir}"
-        )
-        snakemake_runner = Snakemake_runner(self.logger)
-        # Download the directory in the location of the current file
-        snakemake_runner.add_arguments(["--directory", self.dir_of_current_file])
-        # Use conda as the genomad and therefore the genomad environment needs to be used
-        snakemake_runner.add_arguments(["--use-conda"])
-        snakemake_runner.add_arguments(["-c", "1"])
-        # Set target rule to genomad_db to create the database
-        snakemake_runner.add_arguments(["download_genomad_db"])
-        snakemake_runner.run()
 
     def install_conda_environments(self):
         self.logger.print(f"Installing conda environments")
@@ -226,15 +221,16 @@ class environment_setupper:
             self.logger.print(
                 f"Cloning vamb branch: {branch}, commit: {refhash}, to directory {vamb_location}"
             )
-            clone_vamb_cli = [
-                "clone",
-                "git@github.com:RasmussenLab/vamb",
-                "-b",
-                branch,
-                vamb_location,
-            ]
-            self.run_git(clone_vamb_cli)
-
+            self.run_git(
+                [
+                    "clone",
+                    "git@github.com:RasmussenLab/vamb",
+                    "-b",
+                    branch,
+                    vamb_location,
+                ]
+            )
+            # Checkout the commit given, if not latest
             if refhash != "latest":
                 self.run_git(["checkout", refhash, "-q"], cwd=vamb_location)
 
@@ -402,11 +398,46 @@ def main(
     Additionally, the --output argument is required which defines the output directory.
     For Quick Start please see the README: https://github.com/Las02/ptracker_workflow/tree/try_cli
     """
+
+    if output is None:
+        raise click.BadParameter(
+            "--output is required",
+        )
+
+    if contig_bamfiles is None and composition_and_rpkm is None:
+        raise click.BadParameter(
+            "Neither --contig_bamfiles and --composition_and_rpkm are used, please define one of them",
+        )
+
+    if contig_bamfiles is not None and composition_and_rpkm is not None:
+        raise click.BadParameter(
+            "Both --contig_bamfiles and --composition_and_rpkm are used, only use one of them",
+        )
+
     logger = Logger()
 
-    environment_setupper(logger).clone_vamb_github(
+    env_setupper = Environment_setupper(logger)
+    env_setupper.clone_vamb_github(refhash="d35788c910", branch="master")
+    vamb_conda_env_yamlfile = env_setupper.create_conda_env_yaml(
         refhash="d35788c910", branch="master"
     )
+    snakemake_runner = Snakemake_runner(logger)
+    snakemake_runner.add_arguments(["-c", str(threads)])
+    snakemake_runner.output_directory = output
+    snakemake_runner.add_to_config(f"vamb_conda_env={vamb_conda_env_yamlfile}")
+
+    if contig_bamfiles is not None:
+        snakemake_runner.add_to_config(f"contig_bamfiles={contig_bamfiles}")
+        snakemake_runner.to_print_while_running_snakemake = (
+            f"Running snakemake with {threads} thread(s), from contigs and bamfiles"
+        )
+
+    if composition_and_rpkm is not None:
+        snakemake_runner.add_to_config(f"composition_and_rpkm ={composition_and_rpkm}")
+        snakemake_runner.to_print_while_running_snakemake = (
+            f"Running snakemake with {threads} thread(s), from composition and rpkm"
+        )
+
     # # Set up the environment
     # if setup_env:
     #     environment_setupper(logger).setup()
