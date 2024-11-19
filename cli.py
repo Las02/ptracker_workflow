@@ -22,7 +22,13 @@ try:
             },
             {
                 "name": "Other Options",
-                "options": ["--threads", "--dryrun", "--setup_env", "--help"],
+                "options": [
+                    "--threads",
+                    "--dryrun",
+                    "--setup_env",
+                    "--help",
+                    "--branch",
+                ],
                 "table_styles": {
                     "row_styles": ["yellow", "default", "default", "default"],
                 },
@@ -56,22 +62,30 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 class Logger:
     def print(self, arg):
         click.echo(click.style(arg, fg="yellow"))
+
     def warn(self, arg):
-        click.echo(click.style("WARNING:   " + arg, fg="red", underline = True))
+        click.echo(click.style("WARNING:   " + arg, fg="red", underline=True))
 
 
 class Cli_runner:
     argument_holder = []
     _command_has_been_added = False
+    _cwd = None
 
     def add_command_to_run(self, command_to_run):
-        if _command_has_been_added:
-            raise Exception(f"A command has allready been added: {self.argument_holder[0]}")
+        if self._command_has_been_added:
+            raise Exception(
+                f"A command has allready been added: {self.argument_holder[0]}"
+            )
         self.argument_holder = [command_to_run] + self.argument_holder
-        _command_has_been_added = True
+        self._command_has_been_added = True
 
     def add_arguments(self, arguments: List):
+        arguments = [arg for arg in arguments if arg != None]
         self.argument_holder += arguments
+
+    def cwd(self, cwd):
+        self._cwd = cwd
 
     def prettyprint_args(self):
         [print(x, end=" ") for x in self.argument_holder]
@@ -83,7 +97,11 @@ class Cli_runner:
         else:
             print("Running:")
             self.prettyprint_args()
-            subprocess.run(self.argument_holder) 
+            if self._cwd == None:
+                subprocess.run(self.argument_holder)
+            else:
+                print(f"cwd: {self._cwd}")
+                subprocess.run(self.argument_holder, cwd=self._cwd)
             print("Ran:")
             self.prettyprint_args()
 
@@ -119,17 +137,19 @@ class Snakemake_runner(Cli_runner):
 See following installation guide: https://snakemake.readthedocs.io/en/stable/getting_started/installation.html"""
             )
 
-        if shutil.which('mamba') is None:
-            self.logger.warn("Could not find mamba installation, is the correct environment activated?")
-            self.logger.warn("Defaulting to use conda to build environments for snakemake, this will be slower")
+        if shutil.which("mamba") is None:
+            self.logger.warn(
+                "Could not find mamba installation, is the correct environment activated?"
+            )
+            self.logger.warn(
+                "Defaulting to use conda to build environments for snakemake, this will be slower"
+            )
             self.add_arguments(["--conda-frontend", "conda"])
-
 
     def add_to_config(self, to_add):
         self.config_options += [to_add]
 
     def run(self):
-
         # use conda: always
         self.add_arguments(["--use-conda"])
         self.add_arguments(["--rerun-incomplete"])
@@ -162,11 +182,20 @@ class environment_setupper:
         self.plamb_exist = self.plamb_dir.exists()
         self.genomad_db_exist = (self.genomad_dir).exists()
 
-    def clone_directory(self, cli):
+    def run_git(self, cli, cwd=None):
         git_cli_runner = Cli_runner()
         git_cli_runner.add_command_to_run(self.git_path)
         git_cli_runner.add_arguments(cli)
+        git_cli_runner.cwd(cwd)
         git_cli_runner.run()
+
+    # def clone_directory(self, cli, cwd=None):
+    #     raise Error("deprecated")
+    #     git_cli_runner = Cli_runner()
+    #     git_cli_runner.add_command_to_run(self.git_path)
+    #     git_cli_runner.add_arguments(cli)
+    #     git_cli_runner.cwd(cwd)
+    #     git_cli_runner.run()
 
     def install_genomad_db(self):
         self.logger.print(
@@ -187,6 +216,27 @@ class environment_setupper:
         snakemake_runner = Snakemake_runner(self.logger)
         snakemake_runner.add_arguments(["--use-conda", "--conda-create-envs-only"])
         snakemake_runner.run()
+
+    def clone_vamb_github(self, refhash: str, branch: str):
+        vamb_location = (
+            self.dir_of_current_file / "bin" / f"vamb_branch_{branch}_commit_{refhash}"
+        )
+        if not vamb_location.exists():
+            self.logger.print(f"Using git installation: {self.git_path}")
+            self.logger.print(
+                f"Cloning vamb branch: {branch}, commit: {refhash}, to directory {vamb_location}"
+            )
+            clone_vamb_cli = [
+                "clone",
+                "git@github.com:RasmussenLab/vamb",
+                "-b",
+                branch,
+                vamb_location,
+            ]
+            self.run_git(clone_vamb_cli)
+
+            if refhash != "latest":
+                self.run_git(["checkout", refhash, "-q"], cwd=vamb_location)
 
     def setup(self):
         if False not in [self.ptracker_exist, self.plamb_exist, self.genomad_db_exist]:
@@ -242,59 +292,60 @@ class environment_setupper:
         return True
 
 
-class List_of_files(click.ParamType):
-    name = "List of paths"
-
-    def convert(self, value, param, ctx):
-        for file in value:
-            if not Path(file).exists():
-                self.fail(f"{file!r} is not a valid path", param, ctx)
-        return list(value)
+# class List_of_files(click.ParamType):
+#     name = "List of paths"
+#
+#     def convert(self, value, param, ctx):
+#         for file in value:
+#             if not Path(file).exists():
+#                 self.fail(f"{file!r} is not a valid path", param, ctx)
+#         return list(value)
 
 
 @click.command()
 # @click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
+# TODO add test of bamfiles directory
 @click.option(
-    "-r",
-    "--reads",
-    help="""\bWhite space separated file containing read pairs. 
-<Notice the header names are required to be: read1 and read2>
+    "-b",
+    "--contig_bamfiles",
+    help="""\bWhite space separated file containing sample, contig and directory_of_bamfiles. 
+<Notice the header names are required to be: sample, contig and directory_of_bamfiles>
 This file could look like:
 ```
-read1                     read2
-path/to/sample_1/read1    path/to/sample_1/read2
-path/to/sample_2/read1    path/to/sample_2/read2
+sample      contig                           directory_of_bamfiles
+sample1     path/to/sample_1/contig.fasta    path/to/sample_1/bamfiles_dir
+sample2     path/to/sample_2/contig.fasta    path/to/sample_2/bamfiles_dir
 ```
-Passing in this file means that the pipeline will be run from the start, meaning it will also assemble the reads.
+# Passing in this file means that the pipeline will be run from the start, meaning it will also assemble the reads.
 
 """,
     type=wss_file(
         Logger(),
-        expected_headers=["read1", "read2"],
-        none_file_columns=[],
+        expected_headers=["sample", "contig", "directory_of_bamfiles"],
+        none_file_columns=["sample"],
     ),
 )
 @click.option(
-    "-a",
-    "--reads_and_assembly_dir",
+    "-c",
+    "--composition_and_rpkm",
     help=f"""\bWhite space separated file containing read pairs and paths to Spades output assembly directories.
-<Notice the header names are required to be: read1, read2 and assembly_dir>
+<Notice the header names are required to be: sample, composition and rpkm>
 This file could look like:  
 ```
-read1                     read2                     assembly_dir
-path/sample_1/read1    path/sample_1/read2    path/sample_1/Spades_dir
-path/sample_2/read1    path/sample_2/read2    path/sample_2/Spades_dir
+sample      composition                       rpkm
+sample1     path/to/sample_1/composition.npz  path/to/sample_1/rpkm.npz
+sample2     path/to/sample_2/composition.npz  path/to/sample_2/rpkm.npz
 ```
 Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
         """,
     type=wss_file(
         Logger(),
         expected_headers=[
-            "read1",
-            "read2",
-            "assembly_dir",
+            "sample",
+            "composition",
+            "rpkm",
         ],
-        spades_column="assembly_dir",
+        none_file_columns=["sample"],
     ),
 )
 @click.option(
@@ -324,8 +375,26 @@ Passing in this file means that the pipeline will not assemble the reads but run
     is_flag=True,
 )
 # @click.option("--r1", cls=OptionEatAll, type=List_of_files())
-# @click.option("--r2", cls=OptionEatAll, type=List_of_files())
-def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output):
+@click.option("-b", "--branch", default="master", show_default=True)
+# @click.option( "-o", "--vamb_options", default="master", help="Pass in options to vamb", show_default=True,)
+# @click.option( "-s", "--snakemake_options", default="master", help="Pass in options to snakemake", show_default=True,)
+@click.option(
+    "-h",
+    "--commit-hash",
+    help="Commits to run the pipeline for",
+    cls=OptionEatAll,
+    type=One_or_more_commit_hashes(),
+)
+def main(
+    setup_env,
+    threads,
+    dryrun,
+    branch,
+    composition_and_rpkm,
+    contig_bamfiles,
+    output,
+    commit_hash,
+):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
     The first time running the program it will try to install the genomad database (~3.1 G) and required scripts.
@@ -335,60 +404,63 @@ def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output):
     """
     logger = Logger()
 
-    # Set up the environment
-    if setup_env:
-        environment_setupper(logger).setup()
-        sys.exit()
-
-    if output is None:
-        raise click.BadParameter(
-            "--output is required",
-        )
-
-    if reads_and_assembly_dir is not None and reads is not None:
-        raise click.BadParameter(
-            "Both --reads_and_assembly and --reads are used, only use one of them",
-        )
-
-    if reads_and_assembly_dir is None and reads is None:
-        raise click.BadParameter(
-            "Neither --reads_and_assembly and --reads are used, please define one of them",
-        )
-
-    # Check if the environment is setup correctly, if not set it up
-    if not environment_setupper(logger).check_if_everything_is_setup():
-        environment_setupper(logger).setup()
-
-    snakemake_runner = Snakemake_runner(logger)
-    snakemake_runner.add_arguments(["-c", str(threads)])
-
-    # Set output directory
-    snakemake_runner.output_directory = output
-
-    # Run the pipeline from the reads, meaning the pipeline will assemble the reads beforehand
-    if reads is not None:
-        snakemake_runner.add_to_config(f"read_file={reads}")
-        snakemake_runner.to_print_while_running_snakemake = (
-            f"Running snakemake with {threads} thread(s), from paired reads"
-        )
-
-    # Run the pipeline from the reads and the assembly graphs
-    if reads_and_assembly_dir is not None:
-        snakemake_runner.add_to_config(f"read_assembly_dir={reads_and_assembly_dir}")
-        snakemake_runner.to_print_while_running_snakemake = f"Running snakemake with {threads} thread(s), from paired reads and assembly graph"
-
-    if dryrun:
-        snakemake_runner.add_arguments(["-n"])
-
-    snakemake_runner.run()
+    environment_setupper(logger).clone_vamb_github(
+        refhash="d35788c910", branch="master"
+    )
+    # # Set up the environment
+    # if setup_env:
+    #     environment_setupper(logger).setup()
+    #     sys.exit()
+    #
+    # if output is None:
+    #     raise click.BadParameter(
+    #         "--output is required",
+    #     )
+    #
+    # if reads_and_assembly_dir is not None and reads is not None:
+    #     raise click.BadParameter(
+    #         "Both --reads_and_assembly and --reads are used, only use one of them",
+    #     )
+    #
+    # if reads_and_assembly_dir is None and reads is None:
+    #     raise click.BadParameter(
+    #         "Neither --reads_and_assembly and --reads are used, please define one of them",
+    #     )
+    #
+    # # Check if the environment is setup correctly, if not set it up
+    # if not environment_setupper(logger).check_if_everything_is_setup():
+    #     environment_setupper(logger).setup()
+    #
+    # snakemake_runner = Snakemake_runner(logger)
+    # snakemake_runner.add_arguments(["-c", str(threads)])
+    #
+    # # Set output directory
+    # snakemake_runner.output_directory = output
+    #
+    # # Run the pipeline from the reads, meaning the pipeline will assemble the reads beforehand
+    # if reads is not None:
+    #     snakemake_runner.add_to_config(f"read_file={reads}")
+    #     snakemake_runner.to_print_while_running_snakemake = (
+    #         f"Running snakemake with {threads} thread(s), from paired reads"
+    #     )
+    #
+    # # Run the pipeline from the reads and the assembly graphs
+    # if reads_and_assembly_dir is not None:
+    #     snakemake_runner.add_to_config(f"read_assembly_dir={reads_and_assembly_dir}")
+    #     snakemake_runner.to_print_while_running_snakemake = f"Running snakemake with {threads} thread(s), from paired reads and assembly graph"
+    #
+    # if dryrun:
+    #     snakemake_runner.add_arguments(["-n"])
+    #
+    # snakemake_runner.run()
 
 
 if __name__ == "__main__":
     # Print --help if no arguments are passed in
-    if len(sys.argv) == 1:
-        main(["--help"])
-    else:
-        main()
+    # if len(sys.argv) == 1:
+    #     main(["--help"])
+    # else:
+    main()
 
     #    status = snakemake.snakemake(snakefile, configfile=paramsfile,
     #                              targets=[target], printshellcmds=True,

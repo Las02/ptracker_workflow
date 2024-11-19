@@ -66,6 +66,16 @@ class List_of_files(click.ParamType):
         return list(value)
 
 
+class One_or_more_commit_hashes(click.ParamType):
+    name = "One_or_more_commit_hashes"
+
+    def convert(self, value, param, ctx):
+        # for file in value:
+        #     if not Path(file).exists():
+        #         self.fail(f"{file!r} is not a valid path", param, ctx)
+        return list(value)
+
+
 class wss_file(click.ParamType):
     name = "White Space Separated File"
 
