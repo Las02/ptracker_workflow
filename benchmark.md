@@ -44,9 +44,10 @@ Assemblies + Organisms .
 
 # Goal This weekend: 
 
-Add benchmarking part to vamb - Or use a make a simple seperate CLI tool for this? - What's the best solution?
+- Add benchmarking part to vamb - Or use a make a simple seperate CLI tool for this? - What's the best solution?
+- Add way to run for several refhashed? 
 
-1) Run Avamb just like the normal version of Vamb
+<!-- 1) Run Avamb just like the normal version of Vamb  -->
 
 2) Run Vamb taxometer and TaxVamb
 
