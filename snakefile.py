@@ -6,7 +6,7 @@ from pathlib import Path
 ## Setup
 # Loading the correct configfile
 THIS_FILE_DIR = config.get("dir_of_current_file", "")
-THIS_FILE_DIR  = Path(THIS_FILE_DIR)
+THIS_FILE_DIR = Path(THIS_FILE_DIR)
 configfile: THIS_FILE_DIR / "config/config.yaml"
 
 # Output directory defined by user
@@ -14,17 +14,15 @@ OUTDIR = config.get("output_directory", "")
 OUTDIR = Path(OUTDIR)
 
 # Functions to get the config-defined threads/walltime/mem_gb for a rule and if not defined the default
-threads_fn = lambda rulename: config.get(rulename, {"threads": config.get("default_threads")}).get(
-    "threads", config.get("default_threads")
-
-)
-walltime_fn = lambda rulename: config.get(rulename, {"walltime": config.get("default_walltime")}).get(
-    "walltime", config.get("default_walltime")
-
-)
-mem_gb_fn = lambda rulename: config.get(rulename, {"mem_gb": config.get("default_mem_gb")}).get(
-    "mem_gb", config.get("default_mem_gb")
-)
+threads_fn = lambda rulename: config.get(
+    rulename, {"threads": config.get("default_threads")}
+).get("threads", config.get("default_threads"))
+walltime_fn = lambda rulename: config.get(
+    rulename, {"walltime": config.get("default_walltime")}
+).get("walltime", config.get("default_walltime"))
+mem_gb_fn = lambda rulename: config.get(
+    rulename, {"mem_gb": config.get("default_mem_gb")}
+).get("mem_gb", config.get("default_mem_gb"))
 
 contig = ""
 bamfiles = ""
@@ -56,39 +54,5 @@ if config.get("composition_and_rpkm") != None:
     rpkm = lambda wildcards: sample_paths[wildcards.sample]["rpkm"]
 
 
-rulename = "vamb_default"
-rule vamb_default:
-    input:
-        contig = contig,
-        bamfiles = bamfiles
-    output:
-        composition = OUTDIR / "sample_{sample}_vamb_default_run_{run_number}_from_bam_contig/composition.npz",
-        rpkm = OUTDIR / "sample_{sample}_vamb_default_run_{run_number}_from_bam_contig/abundance.npz",
-        dir = OUTDIR / "sample_{sample}_vamb_default_run_{run_number}_from_bam_contig",
-    threads: threads_fn(rulename)
-    resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-    conda: THIS_FILE_DIR / "envs" / config["vamb_conda_env_yamlfile"]
-    shell:
-        """
-        rm -rf {output.dir}
-        vamb bin default --outdir {output.dir} --fasta {input.contig} \
-        -p {threads} --bamfiles {input.bamfiles} -m 2000
-        """
-
-rulename = "vamb_default_rpkm_comp"
-rule vamb_default_rpkm_comp:
-    input:
-        # TODO add propper output
-        composition = composition if config.get("composition_and_rpkm") is not None else  OUTDIR / "sample_{sample}_vamb_default_run_{run_number}_from_bam_contig/composition.npz",
-        rpkm = rpkm if config.get("composition_and_rpkm") is not None else OUTDIR / "sample_{sample}_vamb_default_run_{run_number}_from_bam_contig/abundance.npz",
-    output:
-        dir = OUTDIR / "sample_{sample}_vamb_default_run_{run_number}_from_rpkm_comp"
-    threads: threads_fn(rulename)
-    resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-    conda: THIS_FILE_DIR / "envs" / config["vamb_conda_env_yamlfile"]
-    shell:
-        """
-        rm -rf {output.dir}
-        vamb bin default --outdir {output.dir} --composition {input.composition} \
-        -p {threads} --rpkm {input.rpkm} -m 2000
-        """
+include: THIS_FILE_DIR / "snakemake_modules/vamb_default.py"
+include: THIS_FILE_DIR / "snakemake_modules/avamb_default.py"

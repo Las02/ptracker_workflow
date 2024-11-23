@@ -79,8 +79,8 @@ class Smk_target_creater:
         self.vambTypes = vambTypes
         self.runtimes = runtimes
         self.from_bamfiles = from_bamfiles
-        for vambtype in vambTypes:
-            assert vambtype in ["vamb_default"]
+        # for vambtype in vambTypes:
+        #     assert vambtype in ["vamb_default"]
 
     def create_targets(self, output_dir: Path = None) -> List[str]:
         targets = []
@@ -447,6 +447,7 @@ Passing in this file means that the pipeline will not assemble the reads but run
 @click.option("-b", "--branch", default="master", show_default=True)
 @click.option("-r", "--runtimes", type=int, default=1, show_default=True)
 @click.option("-d", "--vamb_default", type=int, is_flag=True)
+@click.option("-d", "--avamb", type=int, is_flag=True)
 # @click.option( "-o", "--vamb_options", default="master", help="Pass in options to vamb", show_default=True,)
 # @click.option( "-s", "--snakemake_options", default="master", help="Pass in options to snakemake", show_default=True,)
 @click.option(
@@ -467,6 +468,7 @@ def main(
     refhash,
     runtimes,
     vamb_default,
+    avamb,
 ):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
@@ -494,6 +496,8 @@ def main(
     vamb_types = []
     if vamb_default:
         vamb_types.append("vamb_default")
+    if avamb:
+        vamb_types.append("avamb")
 
     if len(vamb_types) == 0:
         raise click.BadParameter(
