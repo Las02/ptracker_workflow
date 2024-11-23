@@ -3,39 +3,31 @@ import collections
 import os
 from pathlib import Path
 
-## Paths
+## Setup
 # Loading the correct configfile
-THIS_FILE_DIR = config.get("dir_of_current_file")
-THIS_FILE_DIR = Path("") if THIS_FILE_DIR is None else Path(THIS_FILE_DIR)
+THIS_FILE_DIR = config.get("dir_of_current_file", "")
+THIS_FILE_DIR  = Path(THIS_FILE_DIR)
 configfile: THIS_FILE_DIR / "config/config.yaml"
 
 # Output directory defined by user
-output_directory = config.get("output_directory")
-# Set as empty path if not defined meaning will not have effect
-OUTDIR = Path("") if output_directory is None else Path(output_directory)
-
-# Define default threads/walltime/mem_gb
-default_walltime = config.get("default_walltime")
-default_threads = config.get("default_threads")
-default_mem_gb = config.get("default_mem_gb")
+OUTDIR = config.get("output_directory", "")
+OUTDIR = Path(OUTDIR)
 
 # Functions to get the config-defined threads/walltime/mem_gb for a rule and if not defined the default
-threads_fn = lambda rulename: config.get(rulename, {"threads": default_threads}).get(
-    "threads", default_threads
-)
-walltime_fn = lambda rulename: config.get(rulename, {"walltime": default_walltime}).get(
-    "walltime", default_walltime
-)
-mem_gb_fn = lambda rulename: config.get(rulename, {"mem_gb": default_mem_gb}).get(
-    "mem_gb", default_mem_gb
-)
+threads_fn = lambda rulename: config.get(rulename, {"threads": config.get("default_threads")}).get(
+    "threads", config.get("default_threads")
 
-# is GPU used ? #
-CUDA = config.get("cuda", False)
+)
+walltime_fn = lambda rulename: config.get(rulename, {"walltime": config.get("default_walltime")}).get(
+    "walltime", config.get("default_walltime")
+
+)
+mem_gb_fn = lambda rulename: config.get(rulename, {"mem_gb": config.get("default_mem_gb")}).get(
+    "mem_gb", config.get("default_mem_gb")
+)
 
 contig = ""
 bamfiles = ""
-
 
 ## Read in the sample data if contig and bamfiles are defined
 if config.get("contig_bamfiles") != None:
@@ -63,7 +55,6 @@ if config.get("composition_and_rpkm") != None:
     composition = lambda wildcards: sample_paths[wildcards.sample]["composition"]
     rpkm = lambda wildcards: sample_paths[wildcards.sample]["rpkm"]
 
-    print(sample_paths)
 
 rulename = "vamb_default"
 rule vamb_default:
@@ -85,7 +76,7 @@ rule vamb_default:
         """
 
 rulename = "vamb_default_rpkm_comp"
-rule vamb_default_rpkm_compt:
+rule vamb_default_rpkm_comp:
     input:
         # TODO add propper output
         composition = composition if config.get("composition_and_rpkm") is not None else  OUTDIR / "sample_{sample}_vamb_default_run_{run_number}_from_bam_contig/composition.npz",

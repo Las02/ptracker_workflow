@@ -7,10 +7,8 @@ def test_snakemake_target():
     )
     targets = smk_target_creator.create_targets()
     assert targets == [
-        "sample_sample1_vamb_default_run_1_from_bam_contig",
         "sample_sample1_vamb_default_run_2_from_rpkm_comp",
         "sample_sample1_vamb_default_run_3_from_rpkm_comp",
-        "sample_sample2_vamb_default_run_1_from_bam_contig",
         "sample_sample2_vamb_default_run_2_from_rpkm_comp",
         "sample_sample2_vamb_default_run_3_from_rpkm_comp",
     ]
