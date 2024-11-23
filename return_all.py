@@ -162,7 +162,7 @@ class wss_file(click.ParamType):
         self.logger.print(df.to_markdown(index=False))
         # self.logger.print(df)
         self.logger.print("")
-        return value
+        return [value, df]
 
     def is_spades_dir_correct(self, x, value, param, ctx):
         if not Path(x).is_dir():

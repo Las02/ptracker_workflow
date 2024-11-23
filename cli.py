@@ -60,6 +60,65 @@ from typing import List
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
+class Smk_target_creater:
+    """
+    smk_target_creator = Smk_target_creater(samples=["sample1", "sample2"])
+    targets = target_creator.create_targets(VambTypes=["Default"], runtimes=3)
+    """
+
+    dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
+
+    def __init__(
+        self,
+        samples: List[str],
+        vambTypes: List[str],
+        runtimes: int,
+        from_bamfiles: bool = True,
+    ):
+        self.samples = samples
+        self.vambTypes = vambTypes
+        self.runtimes = runtimes
+        self.from_bamfiles = from_bamfiles
+        for vambtype in vambTypes:
+            assert vambtype in ["vamb_default"]
+
+    def create_targets(self, output_dir: Path = None) -> List[str]:
+        targets = []
+        for sample in self.samples:
+            for vamb_type in self.vambTypes:
+                if self.from_bamfiles:
+                    targets += self.add_vamb_runs(
+                        f"sample_{sample}_{vamb_type}", default=True
+                    )
+                else:
+                    targets += self.add_vamb_runs(
+                        f"sample_{sample}_{vamb_type}", default=False
+                    )
+
+        if output_dir is not None:
+            targets = [output_dir / target for target in targets]
+        return targets
+
+    def add_vamb_runs(self, sample_vamb_type: str, default: bool) -> List[str]:
+        if default:
+            start_int = 2
+        else:
+            start_int = 1
+        # All should be made from rpkm and composition
+        out_targets = []
+        for run_number in range(start_int, self.runtimes + 1, 1):
+            out_targets.append(sample_vamb_type + f"_run_{run_number}_from_rpkm_comp")
+        return out_targets
+
+        # def add_vamb_runs_vamb_default(self, sample_vamb_type: str) -> List[str]:
+        #     out_targets = []
+        #     # Dont create all from rpkm and composition of the first
+        #     for run_number in range(2, self.runtimes + 1, 1):
+        #         out_targets.append(sample_vamb_type + f"_run_{run_number}_from_rpkm_comp")
+
+        return out_targets
+
+
 class Logger:
     def print(self, arg):
         click.echo(click.style(arg, fg="yellow"))
@@ -110,7 +169,8 @@ class Cli_runner:
 class Snakemake_runner(Cli_runner):
     argument_holder = []
     to_print_while_running_snakemake = None
-    config_options = []
+    config_options = None
+    target_rule = None
     snakemake_path = shutil.which("snakemake")
     dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
     output_directory = os.getcwd()
@@ -148,20 +208,33 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
             self.add_arguments(["--conda-frontend", "conda"])
 
     def add_to_config(self, to_add):
+        if self.config_options is None:
+            self.config_options = []
         self.config_options += [to_add]
 
+    def add_to_target_rule(self, to_add):
+        if self.target_rule is None:
+            self.target_rule = []
+        self.target_rule += to_add
+
     def run(self):
+        self.add_to_config(f"output_directory={self.output_directory}")
+        self.add_to_config(f"dir_of_current_file={self.dir_of_current_file}")
+        # Add config options
+        if self.config_options is not None:
+            self.add_arguments((["--config"] + self.config_options))
+        # Log
+        if self.to_print_while_running_snakemake is not None:
+            self.logger.print(self.to_print_while_running_snakemake)
+
         # use conda: always
         self.add_arguments(["--use-conda"])
         self.add_arguments(["--rerun-incomplete"])
 
-        self.add_to_config(f"output_directory={self.output_directory}")
-        self.add_to_config(f"dir_of_current_file={self.dir_of_current_file}")
-        # Add config options
-        self.add_arguments((["--config"] + self.config_options))
-        # Log
-        if self.to_print_while_running_snakemake is not None:
-            self.logger.print(self.to_print_while_running_snakemake)
+        # Needs to be added last
+        if self.target_rule is not None:
+            self.add_arguments((self.target_rule))
+
         # Run
         super().run()
 
@@ -372,11 +445,13 @@ Passing in this file means that the pipeline will not assemble the reads but run
 )
 # @click.option("--r1", cls=OptionEatAll, type=List_of_files())
 @click.option("-b", "--branch", default="master", show_default=True)
+@click.option("-r", "--runtimes", type=int, default=1, show_default=True)
+@click.option("-d", "--vamb_default", type=int, is_flag=True)
 # @click.option( "-o", "--vamb_options", default="master", help="Pass in options to vamb", show_default=True,)
 # @click.option( "-s", "--snakemake_options", default="master", help="Pass in options to snakemake", show_default=True,)
 @click.option(
-    "-h",
-    "--commit-hash",
+    "-r",
+    "--refhash",
     help="Commits to run the pipeline for",
     cls=OptionEatAll,
     type=One_or_more_commit_hashes(),
@@ -389,7 +464,9 @@ def main(
     composition_and_rpkm,
     contig_bamfiles,
     output,
-    commit_hash,
+    refhash,
+    runtimes,
+    vamb_default,
 ):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
@@ -414,29 +491,67 @@ def main(
             "Both --contig_bamfiles and --composition_and_rpkm are used, only use one of them",
         )
 
+    vamb_types = []
+    if vamb_default:
+        vamb_types.append("vamb_default")
+
+    if len(vamb_types) == 0:
+        raise click.BadParameter(
+            "No vamb types is defined",
+        )
+
     logger = Logger()
 
+    refhash = "latest"  # TODO change to go over all refhashes ?
     env_setupper = Environment_setupper(logger)
-    env_setupper.clone_vamb_github(refhash="d35788c910", branch="master")
+    env_setupper.clone_vamb_github(refhash=refhash, branch=branch)
     vamb_conda_env_yamlfile = env_setupper.create_conda_env_yaml(
-        refhash="d35788c910", branch="master"
+        refhash=refhash, branch=branch
     )
     snakemake_runner = Snakemake_runner(logger)
     snakemake_runner.add_arguments(["-c", str(threads)])
     snakemake_runner.output_directory = output
-    snakemake_runner.add_to_config(f"vamb_conda_env={vamb_conda_env_yamlfile}")
+    snakemake_runner.add_to_config(f"vamb_conda_env_yamlfile={vamb_conda_env_yamlfile}")
+    snakemake_runner.add_to_config(f"vamb_run_name=r_{refhash}_b_{branch}")
 
     if contig_bamfiles is not None:
-        snakemake_runner.add_to_config(f"contig_bamfiles={contig_bamfiles}")
+        path_contig_bamfiles, df = contig_bamfiles
+        smk_target_creator = Smk_target_creater(
+            samples=list(df["sample"]),
+            vambTypes=vamb_types,
+            runtimes=runtimes,
+            from_bamfiles=True,
+        )
+        snakemake_runner.add_to_config(f"contig_bamfiles={path_contig_bamfiles}")
         snakemake_runner.to_print_while_running_snakemake = (
             f"Running snakemake with {threads} thread(s), from contigs and bamfiles"
         )
 
     if composition_and_rpkm is not None:
-        snakemake_runner.add_to_config(f"composition_and_rpkm ={composition_and_rpkm}")
+        path_composition_and_rpkm, df = composition_and_rpkm
+        smk_target_creator = Smk_target_creater(
+            samples=list(df["sample"]),
+            vambTypes=vamb_types,
+            runtimes=runtimes,
+            from_bamfiles=False,
+        )
+        snakemake_runner.add_to_config(
+            f"composition_and_rpkm={path_composition_and_rpkm}"
+        )
         snakemake_runner.to_print_while_running_snakemake = (
             f"Running snakemake with {threads} thread(s), from composition and rpkm"
         )
+
+    snakemake_runner.add_to_target_rule(
+        smk_target_creator.create_targets(output_dir=Path(output))
+    )
+
+    if dryrun:
+        snakemake_runner.add_arguments(["-np"])
+
+    # snakemake_runner.add_to_target_rule("sample_sample1/vamb_default")
+
+    snakemake_runner.run()
 
     # # Set up the environment
     # if setup_env:
