@@ -442,6 +442,8 @@ Passing in this file means that the pipeline will not assemble the reads but run
 @click.option("-d", "--vamb_default", is_flag=True)
 @click.option("-d", "--avamb", is_flag=True)
 @click.option("-b", "--run_binbencher", is_flag=True)
+@click.option("-b", "--taxvamb", is_flag=True)
+@click.option("-b", "--taxometer", is_flag=True)
 # @click.option( "-o", "--vamb_options", default="master", help="Pass in options to vamb", show_default=True,)
 # @click.option( "-s", "--snakemake_options", default="master", help="Pass in options to snakemake", show_default=True,)
 @click.option(
@@ -463,7 +465,9 @@ def main(
     runtimes,
     vamb_default,
     avamb,
-    run_binbencher,
+    run_binbencher: bool,
+    taxvamb: bool,
+    taxometer: bool,
 ):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
@@ -493,6 +497,8 @@ def main(
         vamb_types.append("vamb_default")
     if avamb:
         vamb_types.append("avamb")
+    if run_binbencher:
+        vamb_types.append("run_binbencher")
 
     if len(vamb_types) == 0:
         raise click.BadParameter("No vamb types is defined")
@@ -501,6 +507,10 @@ def main(
 
     if contig_bamfiles is not None:
         expected_headers = ["sample", "contig", "directory_of_bamfiles"]
+        if run_binbencher:
+            expected_headers += ["reference"]
+        if taxvamb or taxometer:
+            expected_headers += ["taxonomy"]
         path_contig_bamfiles, df = wss_file_checker(
             Logger(),
             expected_headers=expected_headers,
@@ -509,6 +519,10 @@ def main(
 
     if composition_and_rpkm is not None:
         expected_headers = ["sample", "composition", "rpkm"]
+        if run_binbencher:
+            expected_headers += ["reference"]
+        if taxvamb or taxometer:
+            expected_headers += ["taxonomy"]
         path_composition_and_rpkm, df = wss_file_checker(
             Logger(),
             expected_headers=expected_headers,
@@ -527,6 +541,11 @@ def main(
     snakemake_runner.add_to_config(f"vamb_conda_env_yamlfile={vamb_conda_env_yamlfile}")
     snakemake_runner.add_to_config(f"vamb_run_name=r_{refhash}_b_{branch}")
 
+    if run_binbencher:
+        snakemake_runner.add_to_config(f"run_binbencher=yes")
+    if taxvamb or taxometer:
+        snakemake_runner.add_to_config(f"taxonomy_information=yes")
+
     if contig_bamfiles is not None:
         smk_target_creator = Smk_target_creater(
             samples=list(df["sample"]),
@@ -534,7 +553,8 @@ def main(
             runtimes=runtimes,
             from_bamfiles=True,
         )
-        snakemake_runner.add_to_config(f"contig_bamfiles={path_contig_bamfiles}")
+        snakemake_runner.add_to_config(f"contig_bamfiles=yes")
+        snakemake_runner.add_to_config(f"input_data={path_contig_bamfiles}")
         snakemake_runner.to_print_while_running_snakemake = (
             f"Running snakemake with {threads} thread(s), from contigs and bamfiles"
         )
@@ -546,9 +566,8 @@ def main(
             runtimes=runtimes,
             from_bamfiles=False,
         )
-        snakemake_runner.add_to_config(
-            f"composition_and_rpkm={path_composition_and_rpkm}"
-        )
+        snakemake_runner.add_to_config(f"composition_and_rpkm=yes")
+        snakemake_runner.add_to_config(f"input_data={path_composition_and_rpkm}")
         snakemake_runner.to_print_while_running_snakemake = (
             f"Running snakemake with {threads} thread(s), from composition and rpkm"
         )
@@ -560,69 +579,12 @@ def main(
     if dryrun:
         snakemake_runner.add_arguments(["-np"])
 
-    # snakemake_runner.add_to_target_rule("sample_sample1/vamb_default")
-
     snakemake_runner.run()
-
-    # # Set up the environment
-    # if setup_env:
-    #     environment_setupper(logger).setup()
-    #     sys.exit()
-    #
-    # if output is None:
-    #     raise click.BadParameter(
-    #         "--output is required",
-    #     )
-    #
-    # if reads_and_assembly_dir is not None and reads is not None:
-    #     raise click.BadParameter(
-    #         "Both --reads_and_assembly and --reads are used, only use one of them",
-    #     )
-    #
-    # if reads_and_assembly_dir is None and reads is None:
-    #     raise click.BadParameter(
-    #         "Neither --reads_and_assembly and --reads are used, please define one of them",
-    #     )
-    #
-    # # Check if the environment is setup correctly, if not set it up
-    # if not environment_setupper(logger).check_if_everything_is_setup():
-    #     environment_setupper(logger).setup()
-    #
-    # snakemake_runner = Snakemake_runner(logger)
-    # snakemake_runner.add_arguments(["-c", str(threads)])
-    #
-    # # Set output directory
-    # snakemake_runner.output_directory = output
-    #
-    # # Run the pipeline from the reads, meaning the pipeline will assemble the reads beforehand
-    # if reads is not None:
-    #     snakemake_runner.add_to_config(f"read_file={reads}")
-    #     snakemake_runner.to_print_while_running_snakemake = (
-    #         f"Running snakemake with {threads} thread(s), from paired reads"
-    #     )
-    #
-    # # Run the pipeline from the reads and the assembly graphs
-    # if reads_and_assembly_dir is not None:
-    #     snakemake_runner.add_to_config(f"read_assembly_dir={reads_and_assembly_dir}")
-    #     snakemake_runner.to_print_while_running_snakemake = f"Running snakemake with {threads} thread(s), from paired reads and assembly graph"
-    #
-    # if dryrun:
-    #     snakemake_runner.add_arguments(["-n"])
-    #
-    # snakemake_runner.run()
 
 
 if __name__ == "__main__":
     # Print --help if no arguments are passed in
-    # if len(sys.argv) == 1:
-    #     main(["--help"])
-    # else:
-    main()
-
-    #    status = snakemake.snakemake(snakefile, configfile=paramsfile,
-    #                              targets=[target], printshellcmds=True,
-    #                              dryrun=args.dry_run, config=config)
-    #
-    # if status: # translate "success" into shell exit code of 0
-    #    return 0
-    # return 1
+    if len(sys.argv) == 1:
+        main(["--help"])
+    else:
+        main()

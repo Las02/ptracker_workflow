@@ -29,7 +29,7 @@ bamfiles = ""
 
 ## Read in the sample data if contig and bamfiles are defined
 if config.get("contig_bamfiles") != None:
-    df = pd.read_csv(config["contig_bamfiles"], sep="\s+", comment="#")
+    df = pd.read_csv(config["input_data"], sep="\s+", comment="#")
     sample_paths = collections.defaultdict(dict)
     for sample, contig, directory_of_bamfiles in zip(
         df["sample"], df.contig, df.directory_of_bamfiles
@@ -41,9 +41,10 @@ if config.get("contig_bamfiles") != None:
     contig = lambda wildcards: sample_paths[wildcards.sample]["contig"]
     bamfiles = lambda wildcards: sample_paths[wildcards.sample]["directory_of_bamfiles"]
 
+
 ## Read in the sample data if composition and rpkm are defined
 if config.get("composition_and_rpkm") != None:
-    df = pd.read_csv(config["composition_and_rpkm"], sep="\s+", comment="#")
+    df = pd.read_csv(config["input_data"], sep="\s+", comment="#")
     sample_paths = collections.defaultdict(dict)
     for sample, composition, rpkm in zip(df["sample"], df.composition, df.rpkm):
         sample = str(sample)
@@ -53,6 +54,22 @@ if config.get("composition_and_rpkm") != None:
     composition = lambda wildcards: sample_paths[wildcards.sample]["composition"]
     rpkm = lambda wildcards: sample_paths[wildcards.sample]["rpkm"]
 
+# ## If should run binbencher also read in the reference data
+# if config.get("run_binbencher") != None:
+#     df = pd.read_csv(config["input_data"], sep="\s+", comment="#")
+#     for sample, reference in zip(df["sample"], df.reference):
+#         sample = str(sample)
+#         sample_paths[sample]["reference"] = reference
+#     reference = lambda wildcards: sample_paths[wildcards.sample]["reference"]
+
+## If should run either taxvamb or taxometer also read in the taxonomy information data
+if config.get("taxonomy_information") != None:
+    df = pd.read_csv(config["input_data"], sep="\s+", comment="#")
+    for sample, taxonomy in zip(df["sample"], df.taxonomy):
+        sample = str(sample)
+        sample_paths[sample]["taxonomy"] = taxonomy
+
+    taxonomy = lambda wildcards: sample_paths[wildcards.sample]["taxonomy"]
 
 include: THIS_FILE_DIR / "snakemake_modules/vamb_default.py"
 include: THIS_FILE_DIR / "snakemake_modules/avamb_default.py"
