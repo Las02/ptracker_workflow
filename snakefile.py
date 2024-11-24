@@ -54,13 +54,6 @@ if config.get("composition_and_rpkm") != None:
     composition = lambda wildcards: sample_paths[wildcards.sample]["composition"]
     rpkm = lambda wildcards: sample_paths[wildcards.sample]["rpkm"]
 
-# ## If should run binbencher also read in the reference data
-# if config.get("run_binbencher") != None:
-#     df = pd.read_csv(config["input_data"], sep="\s+", comment="#")
-#     for sample, reference in zip(df["sample"], df.reference):
-#         sample = str(sample)
-#         sample_paths[sample]["reference"] = reference
-#     reference = lambda wildcards: sample_paths[wildcards.sample]["reference"]
 
 ## If should run either taxvamb or taxometer also read in the taxonomy information data
 if config.get("taxonomy_information") != None:
