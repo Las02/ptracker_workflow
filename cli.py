@@ -54,6 +54,7 @@ import subprocess
 from pathlib import Path
 import shutil
 from typing import List
+from collections import defaultdict
 
 
 # Make both -h and --help available instead of just --help
@@ -82,21 +83,27 @@ class Smk_target_creater:
         # for vambtype in vambTypes:
         #     assert vambtype in ["vamb_default"]
 
-    def create_targets(self, output_dir: Path = None) -> List[str]:
+    def create_targets(self, output_dir: Path = None, as_dict=False) -> List[str]:
+        dict_out = defaultdict(list)
         targets = []
         for sample in self.samples:
+            to_add = []
             for vamb_type in self.vambTypes:
                 if self.from_bamfiles:
-                    targets += self.add_vamb_runs(
+                    to_add += self.add_vamb_runs(
                         f"sample_{sample}_{vamb_type}", default=True
                     )
                 else:
-                    targets += self.add_vamb_runs(
+                    to_add += self.add_vamb_runs(
                         f"sample_{sample}_{vamb_type}", default=False
                     )
+            targets += to_add
+            dict_out[sample] += to_add
 
         if output_dir is not None:
             targets = [output_dir / target for target in targets]
+        if as_dict:
+            return dict_out
         return targets
 
     def add_vamb_runs(self, sample_vamb_type: str, default: bool) -> List[str]:
@@ -143,6 +150,12 @@ class Cli_runner:
     def add_arguments(self, arguments: List):
         arguments = [arg for arg in arguments if arg != None]
         self.argument_holder += arguments
+
+    def clear_arguments(self):
+        if self._command_has_been_added:
+            self.argument_holder = [self.argument_holder[0]]
+        else:
+            self.argument_holder = []
 
     def cwd(self, cwd):
         self._cwd = cwd
@@ -361,6 +374,39 @@ class Environment_setupper:
         return True
 
 
+class BinBencher(Cli_runner):
+    def __init__(self, reference: str, targets: List[str]) -> None:
+        super().__init__()
+        self.add_command_to_run("Julia")
+        self.targets = targets
+        self.reference = reference
+        self.cwd(Path(os.path.dirname(os.path.realpath(__file__))))
+        self.has_been_run = []
+
+    def run_all_targets(self, dry_run_command=False):
+        for target in self.targets:
+            self.clear_arguments()
+            self.add_arguments(["./BinBencher"])
+            self.add_arguments([target])
+            self.add_arguments([self.reference])
+            self.run(dry_run_command=dry_run_command)
+
+    def run(self, dry_run_command=False):
+        if dry_run_command:
+            print("running:", self.argument_holder)
+        else:
+            print("Running:")
+            self.prettyprint_args()
+            print(f"cwd: {self._cwd}")
+            output = subprocess.run(
+                self.argument_holder, cwd=self._cwd, stdout=subprocess.PIPE
+            )
+            print("Ran:")
+            self.prettyprint_args()
+
+        self.has_been_run.append(self.argument_holder)
+
+
 # class List_of_files(click.ParamType):
 #     name = "List of paths"
 #
@@ -497,8 +543,6 @@ def main(
         vamb_types.append("vamb_default")
     if avamb:
         vamb_types.append("avamb")
-    if run_binbencher:
-        vamb_types.append("run_binbencher")
 
     if len(vamb_types) == 0:
         raise click.BadParameter("No vamb types is defined")
@@ -541,8 +585,6 @@ def main(
     snakemake_runner.add_to_config(f"vamb_conda_env_yamlfile={vamb_conda_env_yamlfile}")
     snakemake_runner.add_to_config(f"vamb_run_name=r_{refhash}_b_{branch}")
 
-    if run_binbencher:
-        snakemake_runner.add_to_config(f"run_binbencher=yes")
     if taxvamb or taxometer:
         snakemake_runner.add_to_config(f"taxonomy_information=yes")
 
@@ -572,9 +614,8 @@ def main(
             f"Running snakemake with {threads} thread(s), from composition and rpkm"
         )
 
-    snakemake_runner.add_to_target_rule(
-        smk_target_creator.create_targets(output_dir=Path(output))
-    )
+    targets = smk_target_creator.create_targets(output_dir=Path(output))
+    snakemake_runner.add_to_target_rule(targets)
 
     if dryrun:
         snakemake_runner.add_arguments(["-np"])
