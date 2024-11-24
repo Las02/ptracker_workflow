@@ -187,6 +187,8 @@ class Snakemake_runner(Cli_runner):
     snakemake_path = shutil.which("snakemake")
     dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
     output_directory = os.getcwd()
+    vamb_run_nam = None
+    vamb_conda_env_yamlfile = None
 
     def __init__(self, logger: Logger, snakefile: str = "snakefile.py"):
         self.add_command_to_run(self.snakemake_path)
@@ -225,14 +227,31 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
             self.config_options = []
         self.config_options += [to_add]
 
+    def set_vamb_run_name(self, refhash, branch):
+        self.vamb_run_nam = f"vamb_run_name=r_{refhash}_b_{branch}"
+    def set_vamb_conda_env_yamlfile(self, vamb_conda_env_yamlfile):
+        self.vamb_conda_env_yamlfile = f"vamb_conda_env_yamlfile={vamb_conda_env_yamlfile}"
+
+
+
     def add_to_target_rule(self, to_add):
         if self.target_rule is None:
             self.target_rule = []
         self.target_rule += to_add
 
     def run(self):
+        # Store old settings 
+        old_config = self.config_options.copy()
+        old_argument_holder = self.argument_holder.copy()
+
         self.add_to_config(f"output_directory={self.output_directory}")
         self.add_to_config(f"dir_of_current_file={self.dir_of_current_file}")
+
+        if self.vamb_run_nam is not None:
+            self.add_to_config(self.vamb_run_nam)
+        if self.vamb_conda_env_yamlfile is not None:
+            self.add_to_config(self.vamb_conda_env_yamlfile)
+
         # Add config options
         if self.config_options is not None:
             self.add_arguments((["--config"] + self.config_options))
@@ -250,6 +269,11 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
 
         # Run
         super().run()
+
+        # Restore old settings for running the tool several times changing only some options
+        self.config_options = old_config 
+        self.argument_holder  = old_argument_holder 
+
 
 
 class Environment_setupper:
@@ -617,17 +641,11 @@ def main(
             none_file_columns=["sample"],
         ).get_info(composition_and_rpkm, param="contig_bamfiles")
 
-    refhash = "latest"  # TODO change to go over all refhashes ?
     env_setupper = Environment_setupper(logger)
-    env_setupper.clone_vamb_github(refhash=refhash, branch=branch)
-    vamb_conda_env_yamlfile = env_setupper.create_conda_env_yaml(
-        refhash=refhash, branch=branch
-    )
+
     snakemake_runner = Snakemake_runner(logger)
     snakemake_runner.add_arguments(["-c", str(threads)])
     snakemake_runner.output_directory = output
-    snakemake_runner.add_to_config(f"vamb_conda_env_yamlfile={vamb_conda_env_yamlfile}")
-    snakemake_runner.add_to_config(f"vamb_run_name=r_{refhash}_b_{branch}")
 
     if taxvamb or taxometer:
         snakemake_runner.add_to_config(f"taxonomy_information=yes")
@@ -664,7 +682,14 @@ def main(
     if dryrun:
         snakemake_runner.add_arguments(["-np"])
 
-    snakemake_runner.run()
+    for refhash in "latest", "d35788c910":
+        env_setupper.clone_vamb_github(refhash=refhash, branch=branch)
+        vamb_conda_env_yamlfile = env_setupper.create_conda_env_yaml(
+            refhash=refhash, branch=branch
+        )
+        snakemake_runner.set_vamb_conda_env_yamlfile(vamb_conda_env_yamlfile)
+        snakemake_runner.set_vamb_run_name(refhash, branch)
+        snakemake_runner.run()
 
     targets_dict = smk_target_creator.create_targets(
         output_dir=Path(output), as_dict=True
