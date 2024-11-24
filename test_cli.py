@@ -69,16 +69,31 @@ def test_bin_bench():
     binbencher.run_all_targets(dry_run_command=True)
     assert binbencher.has_been_run == [
         [
-            "Julia",
+            "julia",
             "./BinBencher",
             "sample_sample1_vamb_default_run_1_from_rpkm_comp",
             "reference",
         ],
         [
-            "Julia",
+            "julia",
             "./BinBencher",
             "sample_sample1_vamb_default_run_2_from_rpkm_comp",
             "reference",
         ],
     ]
-    # # binbencher.get_benchmarks()
+
+
+def test_binbencher_output_individual():
+    binbencher = BinBencher(reference="reference", targets=["target1"])
+    binbencher.tool_to_run = "./test_stuff/test_binbench.jl"
+    # above file contains ```println("2")```
+    binbencher.run_all_targets(dry_run_command=False)
+    assert binbencher.get_output() == 2
+
+
+def test_binbencher_output_several():
+    binbencher = BinBencher(reference="reference", targets=["target1", "target2"])
+    binbencher.tool_to_run = "./test_stuff/test_binbench.jl"
+    # above file contains ```println("2")```
+    binbencher.run_all_targets(dry_run_command=False)
+    assert binbencher.get_benchmarks() == {"target1": 2, "target2": 2}

@@ -97,11 +97,11 @@ class Smk_target_creater:
                     to_add += self.add_vamb_runs(
                         f"sample_{sample}_{vamb_type}", default=False
                     )
+            if output_dir is not None:
+                to_add = [output_dir / x for x in to_add]
             targets += to_add
             dict_out[sample] += to_add
 
-        if output_dir is not None:
-            targets = [output_dir / target for target in targets]
         if as_dict:
             return dict_out
         return targets
@@ -171,10 +171,10 @@ class Cli_runner:
             print("Running:")
             self.prettyprint_args()
             if self._cwd == None:
-                subprocess.run(self.argument_holder)
+                subprocess.call(self.argument_holder)
             else:
                 print(f"cwd: {self._cwd}")
-                subprocess.run(self.argument_holder, cwd=self._cwd)
+                subprocess.call(self.argument_holder, cwd=self._cwd)
             print("Ran:")
             self.prettyprint_args()
 
@@ -375,21 +375,35 @@ class Environment_setupper:
 
 
 class BinBencher(Cli_runner):
+    output = None
+    target_result = None
+
     def __init__(self, reference: str, targets: List[str]) -> None:
         super().__init__()
-        self.add_command_to_run("Julia")
+        self.julia_path = shutil.which("julia")
+        self.validate_paths()
+        self.add_command_to_run(self.julia_path)
         self.targets = targets
         self.reference = reference
+        self.tool_to_run = "./BinBencher"
         self.cwd(Path(os.path.dirname(os.path.realpath(__file__))))
         self.has_been_run = []
 
     def run_all_targets(self, dry_run_command=False):
+        self.target_result = defaultdict()
         for target in self.targets:
             self.clear_arguments()
-            self.add_arguments(["./BinBencher"])
+            self.add_arguments([self.tool_to_run])
             self.add_arguments([target])
             self.add_arguments([self.reference])
             self.run(dry_run_command=dry_run_command)
+            if not dry_run_command:
+                self.target_result[target] = self.get_output()
+
+    def get_benchmarks(self):
+        if self.target_result is None:
+            raise Exception("run cmd has not been run")
+        return dict(self.target_result)
 
     def run(self, dry_run_command=False):
         if dry_run_command:
@@ -398,13 +412,24 @@ class BinBencher(Cli_runner):
             print("Running:")
             self.prettyprint_args()
             print(f"cwd: {self._cwd}")
-            output = subprocess.run(
+            self.output = subprocess.run(
                 self.argument_holder, cwd=self._cwd, stdout=subprocess.PIPE
             )
             print("Ran:")
             self.prettyprint_args()
 
         self.has_been_run.append(self.argument_holder)
+
+    def get_output(self):
+        if self.output is None:
+            raise Exception("run cmd has not been run or did not create any std.out")
+        return int(self.output.stdout.decode("utf-8").strip())
+
+    def validate_paths(self):
+        if self.julia_path is None:
+            raise click.UsageError(
+                """Could not find julia, is it installed?"""
+            )
 
 
 # class List_of_files(click.ParamType):
@@ -621,6 +646,20 @@ def main(
         snakemake_runner.add_arguments(["-np"])
 
     snakemake_runner.run()
+
+    if run_binbencher:
+        targets_dict = smk_target_creator.create_targets(
+            output_dir=Path(output), as_dict=True
+        )
+        results = defaultdict()
+        logger.print("Starting running BinBencher")
+        for sample in targets_dict.keys():
+            binbencher = BinBencher(reference="reference", targets=targets_dict[sample])
+            binbencher.tool_to_run = "./test_stuff/test_binbench.jl"
+            binbencher.run_all_targets(dry_run_command=False)
+            results.update(binbencher.get_benchmarks())
+        print(results)
+
 
 
 if __name__ == "__main__":
