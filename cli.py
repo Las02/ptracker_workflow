@@ -388,11 +388,12 @@ sample2     path/to/sample_2/contig.fasta    path/to/sample_2/bamfiles_dir
 # Passing in this file means that the pipeline will be run from the start, meaning it will also assemble the reads.
 
 """,
-    type=wss_file(
-        Logger(),
-        expected_headers=["sample", "contig", "directory_of_bamfiles"],
-        none_file_columns=["sample"],
-    ),
+    type=click.Path(exists=True),
+    # type=wss_file(
+    #     Logger(),
+    #     expected_headers=["sample", "contig", "directory_of_bamfiles"],
+    #     none_file_columns=["sample"],
+    # ),
 )
 @click.option(
     "-c",
@@ -407,15 +408,7 @@ sample2     path/to/sample_2/composition.npz  path/to/sample_2/rpkm.npz
 ```
 Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
         """,
-    type=wss_file(
-        Logger(),
-        expected_headers=[
-            "sample",
-            "composition",
-            "rpkm",
-        ],
-        none_file_columns=["sample"],
-    ),
+    type=click.Path(exists=True),
 )
 @click.option(
     "-t",
@@ -446,8 +439,9 @@ Passing in this file means that the pipeline will not assemble the reads but run
 # @click.option("--r1", cls=OptionEatAll, type=List_of_files())
 @click.option("-b", "--branch", default="master", show_default=True)
 @click.option("-r", "--runtimes", type=int, default=1, show_default=True)
-@click.option("-d", "--vamb_default", type=int, is_flag=True)
-@click.option("-d", "--avamb", type=int, is_flag=True)
+@click.option("-d", "--vamb_default", is_flag=True)
+@click.option("-d", "--avamb", is_flag=True)
+@click.option("-b", "--run_binbencher", is_flag=True)
 # @click.option( "-o", "--vamb_options", default="master", help="Pass in options to vamb", show_default=True,)
 # @click.option( "-s", "--snakemake_options", default="master", help="Pass in options to snakemake", show_default=True,)
 @click.option(
@@ -469,6 +463,7 @@ def main(
     runtimes,
     vamb_default,
     avamb,
+    run_binbencher,
 ):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
@@ -500,11 +495,25 @@ def main(
         vamb_types.append("avamb")
 
     if len(vamb_types) == 0:
-        raise click.BadParameter(
-            "No vamb types is defined",
-        )
+        raise click.BadParameter("No vamb types is defined")
 
     logger = Logger()
+
+    if contig_bamfiles is not None:
+        expected_headers = ["sample", "contig", "directory_of_bamfiles"]
+        path_contig_bamfiles, df = wss_file_checker(
+            Logger(),
+            expected_headers=expected_headers,
+            none_file_columns=["sample"],
+        ).get_info(contig_bamfiles, param="contig_bamfiles")
+
+    if composition_and_rpkm is not None:
+        expected_headers = ["sample", "composition", "rpkm"]
+        path_composition_and_rpkm, df = wss_file_checker(
+            Logger(),
+            expected_headers=expected_headers,
+            none_file_columns=["sample"],
+        ).get_info(composition_and_rpkm, param="contig_bamfiles")
 
     refhash = "latest"  # TODO change to go over all refhashes ?
     env_setupper = Environment_setupper(logger)
@@ -519,7 +528,6 @@ def main(
     snakemake_runner.add_to_config(f"vamb_run_name=r_{refhash}_b_{branch}")
 
     if contig_bamfiles is not None:
-        path_contig_bamfiles, df = contig_bamfiles
         smk_target_creator = Smk_target_creater(
             samples=list(df["sample"]),
             vambTypes=vamb_types,
@@ -532,7 +540,6 @@ def main(
         )
 
     if composition_and_rpkm is not None:
-        path_composition_and_rpkm, df = composition_and_rpkm
         smk_target_creator = Smk_target_creater(
             samples=list(df["sample"]),
             vambTypes=vamb_types,
