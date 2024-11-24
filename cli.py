@@ -427,9 +427,28 @@ class BinBencher(Cli_runner):
 
     def validate_paths(self):
         if self.julia_path is None:
-            raise click.UsageError(
-                """Could not find julia, is it installed?"""
-            )
+            raise click.UsageError("""Could not find julia, is it installed?""")
+
+
+def output_binbencher_results(targets_dict, df, output_file, logger, refhash):
+    targets2benchmark = defaultdict()
+    logger.print("Starting running BinBencher")
+    sample2ref = {sample: ref for sample, ref in zip(df["sample"], df["reference"])}
+    for sample in targets_dict.keys():
+        binbencher = BinBencher(
+            reference=sample2ref[sample], targets=targets_dict[sample]
+        )
+        binbencher.tool_to_run = "./test_stuff/test_binbench.jl" # WARNING remove this
+        binbencher.run_all_targets(dry_run_command=False)
+        targets2benchmark.update(binbencher.get_benchmarks())
+
+    # TODO print in a nice format including vamb_type, run_number etc. formatted in different columns
+    if not output_file.exists():
+        output_file.mkdir()
+    with open(output_file, "w") as f:
+        print("refhash\ttarget\tbenchmark", file=f)
+        for target, benchmark in targets2benchmark.items():
+            print(f"{refhash}\t{target}\t{benchmark}", file=f)
 
 
 # class List_of_files(click.ParamType):
@@ -647,19 +666,17 @@ def main(
 
     snakemake_runner.run()
 
+    targets_dict = smk_target_creator.create_targets(
+        output_dir=Path(output), as_dict=True
+    )
     if run_binbencher:
-        targets_dict = smk_target_creator.create_targets(
-            output_dir=Path(output), as_dict=True
+        output_binbencher_results(
+            targets_dict=targets_dict,
+            df = df,
+            output_file=Path(output) / "benchmark.tsv",
+            logger=logger,
+            refhash=refhash,
         )
-        results = defaultdict()
-        logger.print("Starting running BinBencher")
-        for sample in targets_dict.keys():
-            binbencher = BinBencher(reference="reference", targets=targets_dict[sample])
-            binbencher.tool_to_run = "./test_stuff/test_binbench.jl"
-            binbencher.run_all_targets(dry_run_command=False)
-            results.update(binbencher.get_benchmarks())
-        print(results)
-
 
 
 if __name__ == "__main__":
