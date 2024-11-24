@@ -1,0 +1,12 @@
+channels:
+- pytorch
+- conda-forge
+- bioconda
+- defaults
+dependencies:
+- python==3.9.0
+- pip
+- pip:
+  - -e
+  - /home/las/benchmark_vamb/ptracker_workflow/bin/vamb_branch_master_commit_e
+name: vamb_env_e

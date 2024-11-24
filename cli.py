@@ -171,10 +171,10 @@ class Cli_runner:
             print("Running:")
             self.prettyprint_args()
             if self._cwd == None:
-                subprocess.call(self.argument_holder)
+                subprocess.run(self.argument_holder, check=True)
             else:
                 print(f"cwd: {self._cwd}")
-                subprocess.call(self.argument_holder, cwd=self._cwd)
+                subprocess.run(self.argument_holder, cwd=self._cwd, check=True)
             print("Ran:")
             self.prettyprint_args()
 
@@ -234,10 +234,9 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
 
 
 
-    def add_to_target_rule(self, to_add):
-        if self.target_rule is None:
-            self.target_rule = []
-        self.target_rule += to_add
+    def set_target_rule(self, to_add):
+        self.target_rule = to_add
+    
 
     def run(self):
         # Store old settings 
@@ -433,14 +432,14 @@ class BinBencher(Cli_runner):
         if dry_run_command:
             print("running:", self.argument_holder)
         else:
-            print("Running:")
-            self.prettyprint_args()
-            print(f"cwd: {self._cwd}")
+            # print("Running:")
+            # self.prettyprint_args()
+            # print(f"cwd: {self._cwd}")
             self.output = subprocess.run(
                 self.argument_holder, cwd=self._cwd, stdout=subprocess.PIPE
             )
-            print("Ran:")
-            self.prettyprint_args()
+            # print("Ran:")
+            # self.prettyprint_args()
 
         self.has_been_run.append(self.argument_holder)
 
@@ -467,12 +466,13 @@ def output_binbencher_results(targets_dict, df, output_file, logger, refhash):
         targets2benchmark.update(binbencher.get_benchmarks())
 
     # TODO print in a nice format including vamb_type, run_number etc. formatted in different columns
-    if not output_file.exists():
-        output_file.mkdir()
-    with open(output_file, "w") as f:
-        print("refhash\ttarget\tbenchmark", file=f)
+    # if not output_file.exists():
+    #     output_file.mkdir()
+    with open(output_file, "a") as f:
+        # print("refhash\ttarget\tbenchmark", file=f)
         for target, benchmark in targets2benchmark.items():
             print(f"{refhash}\t{target}\t{benchmark}", file=f)
+    logger.print(f"Finished running BinBencher, output files in {output_file}")
 
 
 # class List_of_files(click.ParamType):
@@ -641,11 +641,9 @@ def main(
             none_file_columns=["sample"],
         ).get_info(composition_and_rpkm, param="contig_bamfiles")
 
-    env_setupper = Environment_setupper(logger)
 
     snakemake_runner = Snakemake_runner(logger)
     snakemake_runner.add_arguments(["-c", str(threads)])
-    snakemake_runner.output_directory = output
 
     if taxvamb or taxometer:
         snakemake_runner.add_to_config(f"taxonomy_information=yes")
@@ -676,32 +674,53 @@ def main(
             f"Running snakemake with {threads} thread(s), from composition and rpkm"
         )
 
-    targets = smk_target_creator.create_targets(output_dir=Path(output))
-    snakemake_runner.add_to_target_rule(targets)
-
     if dryrun:
         snakemake_runner.add_arguments(["-np"])
 
-    for refhash in "latest", "d35788c910":
+    if refhash == None:
+        logger.warn("Refhash not set, defaulting to lastest version of VAMB")
+        refhash = ["latest"]
+
+
+    for refhash in refhash:
+        # Set output dir for snakemake 
+        output_dir_refhash = Path(output) / refhash
+        snakemake_runner.output_directory = output_dir_refhash
+
+        # Set targets snakemake try to create
+        targets = smk_target_creator.create_targets(output_dir=output_dir_refhash) 
+        snakemake_runner.set_target_rule(targets)
+
+        # Create vamb version w.r.t. to the refhash
+        env_setupper = Environment_setupper(logger)
         env_setupper.clone_vamb_github(refhash=refhash, branch=branch)
+        # .. and yaml file pointing to it
         vamb_conda_env_yamlfile = env_setupper.create_conda_env_yaml(
             refhash=refhash, branch=branch
         )
+        # Let snakemake know where it is
         snakemake_runner.set_vamb_conda_env_yamlfile(vamb_conda_env_yamlfile)
+
+        # Set the name of the snakemake run
         snakemake_runner.set_vamb_run_name(refhash, branch)
+
+        # Run snakemake
         snakemake_runner.run()
 
-    targets_dict = smk_target_creator.create_targets(
-        output_dir=Path(output), as_dict=True
-    )
-    if run_binbencher:
-        output_binbencher_results(
-            targets_dict=targets_dict,
-            df = df,
-            output_file=Path(output) / "benchmark.tsv",
-            logger=logger,
-            refhash=refhash,
+
+        # TODO this section should be moved down such that it takes the arguments and then
+        # writes to the file without appendig
+        targets_dict = smk_target_creator.create_targets(
+            output_dir=output_dir_refhash, as_dict=True
         )
+        if run_binbencher:
+            output_binbencher_results(
+                targets_dict=targets_dict,
+                df = df,
+                output_file=Path(output) / "benchmark.tsv",
+                logger=logger,
+                refhash=refhash,
+            )
 
 
 if __name__ == "__main__":
