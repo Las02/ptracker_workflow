@@ -41,13 +41,13 @@ except ModuleNotFoundError as e:
         import click
     except ModuleNotFoundError as e:
         print("""\nCould not find module click or module rich_click, please make sure to create an environment containing 
-either of modueles eg. using conda or pip. See the user guide on the github README.\n""")
+either of modules eg. using conda or pip. See the user guide on the github README.\n""")
         raise e
 
 
-import yaml
-from pandas.core.generic import config
 from return_all import *
+import yaml
+#from pandas.core.generic import config
 import os
 import sys
 import subprocess
@@ -595,6 +595,7 @@ def main(
     Additionally, the --output argument is required which defines the output directory.
     For Quick Start please see the README: https://github.com/Las02/ptracker_workflow/tree/try_cli
     """
+
 
     if output is None:
         raise click.BadParameter(
