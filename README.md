@@ -1,18 +1,22 @@
 # Pipeline for running PLAMB 
-Pipeline for running Plamb: https://github.com/RasmussenLab/vamb/tree/vamb_n2v_asy
+Pipeline for running Benchmarking Vamb: https://github.com/RasmussenLab/vamb
 
 
 ## Quick Start
 ```
 # Create environment and install dependencies 
-conda create -n ptracker_pipeline -c conda-forge -c bioconda snakemake-minimal pandas mamba
-conda activate ptracker_pipeline
+conda create -n vamb_benchmarker -c conda-forge -c bioconda snakemake-minimal pandas mamba pyyaml julia
+conda activate vamb_benchmarker
 pip install rich-click
 
 # clone the repository
-git clone https://github.com/Las02/ptracker_workflow -b try_cli
+git clone https://github.com/Las02/ptracker_workflow -b Benchmark_vamb_cli
 
 ```
+From Below needs to be updated to reflect benchmarking tool
+----
+
+
  To run the entire pipeline including assembly pass in a whitespace separated file containing the reads:
 ```
 ./ptracker_workflow/cli.py --reads <read_file> 
