@@ -11,6 +11,49 @@ pip install rich-click
 
 # clone the repository
 git clone https://github.com/Las02/ptracker_workflow -b Benchmark_vamb_cli
+```
+
+
+## Running on cluster
+You can extend the arguments passed to snakemake by the '--snakemake_arguments' flag
+This can then be used to have snakemake submit jobs to a cluster.
+On SLURM this could look like
+
+```
+./cli.py <arguments> --snakemake_arguments \
+    '--jobs 16 --max-jobs-per-second 5 --max-status-checks-per-second 5 --latency-wait 60 \
+    --cluster "sbatch  --output={rule}.%j.o --error={rule}.%j.e \
+    --time={resources.walltime} --job-name {rule}  --cpus-per-task {threads} --mem {resources.mem_gb}G "'
+```
+<!-- # TODO test above -->
+
+## Setting resources
+The resources are set in 'config/config.yaml'
+If the tool is not submitting jobs to a cluster, the number of threads will be used to calculate how many rules can be run on the same time. If a rules defined threads is large than the number of threads defined in the --threads command line argument the threads used in the rule will be scaled down.  
+A resource for a rule can be set as:
+```
+vamb_default:
+  walltime: "05-00:00:00"
+  threads: 16
+  mem_gb: 245
+```
+
+If no resources is set for a rule the tool will default to the default resources set in the script:
+```
+default_walltime: "48:00:00"
+default_threads: 8
+default_mem_gb: 50
+```
+
+
+
+
+
+
+
+
+
+
 
 ```
 From Below needs to be updated to reflect benchmarking tool
