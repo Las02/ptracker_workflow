@@ -26,6 +26,7 @@ mem_gb_fn = lambda rulename: config.get(
 
 contig = ""
 bamfiles = ""
+taxonomy = ""
 
 ## Read in the sample data if contig and bamfiles are defined
 if config.get("contig_bamfiles") != None:

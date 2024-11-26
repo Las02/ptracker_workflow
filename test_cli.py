@@ -14,6 +14,17 @@ def test_snakemake_target():
     ]
 
 
+def test_snakemake_target_single():
+    smk_target_creator = Smk_target_creater(
+        samples=["sample1", "sample2"], vambTypes=["vamb_default"], runtimes=1
+    )
+    targets = smk_target_creator.create_targets()
+    assert targets == [
+        "sample_sample1_vamb_default_run_1_from_bam_contig",
+        "sample_sample2_vamb_default_run_1_from_bam_contig",
+    ]
+
+
 def test_snakemake_target_from_rpkm():
     smk_target_creator = Smk_target_creater(
         samples=["sample1"], vambTypes=["vamb_default"], runtimes=2, from_bamfiles=False

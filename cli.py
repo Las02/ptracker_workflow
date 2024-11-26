@@ -107,10 +107,14 @@ class Smk_target_creater:
         return targets
 
     def add_vamb_runs(self, sample_vamb_type: str, default: bool) -> List[str]:
-        if default:
+        # If it should only be run one time, it is run from bamfiles and contigfiles.
+        if self.runtimes == 1 and default:
+            return [sample_vamb_type + f"_run_1_from_bam_contig"]
+        elif default:
             start_int = 2
         else:
             start_int = 1
+
         # All should be made from rpkm and composition
         out_targets = []
         for run_number in range(start_int, self.runtimes + 1, 1):
@@ -229,17 +233,17 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
 
     def set_vamb_run_name(self, refhash, branch):
         self.vamb_run_nam = f"vamb_run_name=r_{refhash}_b_{branch}"
+
     def set_vamb_conda_env_yamlfile(self, vamb_conda_env_yamlfile):
-        self.vamb_conda_env_yamlfile = f"vamb_conda_env_yamlfile={vamb_conda_env_yamlfile}"
-
-
+        self.vamb_conda_env_yamlfile = (
+            f"vamb_conda_env_yamlfile={vamb_conda_env_yamlfile}"
+        )
 
     def set_target_rule(self, to_add):
         self.target_rule = to_add
-    
 
     def run(self):
-        # Store old settings 
+        # Store old settings
         old_config = self.config_options.copy()
         old_argument_holder = self.argument_holder.copy()
 
@@ -270,9 +274,8 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
         super().run()
 
         # Restore old settings for running the tool several times changing only some options
-        self.config_options = old_config 
-        self.argument_holder  = old_argument_holder 
-
+        self.config_options = old_config
+        self.argument_holder = old_argument_holder
 
 
 class Environment_setupper:
@@ -461,7 +464,7 @@ def output_binbencher_results(targets_dict, df, output_file, logger, refhash):
         binbencher = BinBencher(
             reference=sample2ref[sample], targets=targets_dict[sample]
         )
-        binbencher.tool_to_run = "./test_stuff/test_binbench.jl" # WARNING remove this
+        binbencher.tool_to_run = "./test_stuff/test_binbench.jl"  # WARNING remove this
         binbencher.run_all_targets(dry_run_command=False)
         targets2benchmark.update(binbencher.get_benchmarks())
 
@@ -647,7 +650,6 @@ def main(
             none_file_columns=["sample"],
         ).get_info(composition_and_rpkm, param="contig_bamfiles")
 
-
     snakemake_runner = Snakemake_runner(logger)
     snakemake_runner.add_arguments(["-c", str(threads)])
 
@@ -687,14 +689,13 @@ def main(
         logger.warn("Refhash not set, defaulting to lastest version of VAMB")
         refhash = ["latest"]
 
-
     for refhash in refhash:
-        # Set output dir for snakemake 
+        # Set output dir for snakemake
         output_dir_refhash = Path(output) / refhash
         snakemake_runner.output_directory = output_dir_refhash
 
         # Set targets snakemake try to create
-        targets = smk_target_creator.create_targets(output_dir=output_dir_refhash) 
+        targets = smk_target_creator.create_targets(output_dir=output_dir_refhash)
         snakemake_runner.set_target_rule(targets)
 
         # Create vamb version w.r.t. to the refhash
@@ -713,7 +714,6 @@ def main(
         # Run snakemake
         snakemake_runner.run()
 
-
         # TODO this section should be moved down such that it takes the arguments and then
         # writes to the file without appendig
         targets_dict = smk_target_creator.create_targets(
@@ -722,7 +722,7 @@ def main(
         if run_binbencher:
             output_binbencher_results(
                 targets_dict=targets_dict,
-                df = df,
+                df=df,
                 output_file=Path(output) / "benchmark.tsv",
                 logger=logger,
                 refhash=refhash,

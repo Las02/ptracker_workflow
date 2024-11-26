@@ -61,10 +61,15 @@ Assemblies + Organisms .
 ----
 
 --- This needs reclarification. 
+markers.npz <- markers
+merged.tsv ift. merged for known taxometers.
+Latent space i vambout så den skal bruges da den er lavet.
 3) Run Recluster
 Run vamb recluster
 Den har to methods Kmeans for SR and DB scan for LR
 AKA kmeans skal bruges til Cami data since it's SR
+
+DB scan skal ikke bruge 
 
 test:
   clusters_merged_unsplit.tsv
