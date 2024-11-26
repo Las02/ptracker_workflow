@@ -557,6 +557,7 @@ Passing in this file means that the pipeline will not assemble the reads but run
 @click.option("-d", "--avamb", is_flag=True)
 @click.option("-b", "--run_binbencher", is_flag=True)
 @click.option("-b", "--taxvamb", is_flag=True)
+@click.option("-b", "--taxvamb_and_taxometer", is_flag=True)
 @click.option("-b", "--taxometer", is_flag=True)
 # @click.option( "-o", "--vamb_options", default="master", help="Pass in options to vamb", show_default=True,)
 # @click.option( "-s", "--snakemake_options", default="master", help="Pass in options to snakemake", show_default=True,)
@@ -582,6 +583,7 @@ def main(
     run_binbencher: bool,
     taxvamb: bool,
     taxometer: bool,
+    taxvamb_and_taxometer: bool,
 ):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
@@ -611,6 +613,10 @@ def main(
         vamb_types.append("vamb_default")
     if avamb:
         vamb_types.append("avamb")
+    if taxvamb:
+        vamb_types.append("taxvamb")
+    if taxvamb_and_taxometer:
+        vamb_types.append("taxvamb_and_taxometer")
 
     if len(vamb_types) == 0:
         raise click.BadParameter("No vamb types is defined")
@@ -621,7 +627,7 @@ def main(
         expected_headers = ["sample", "contig", "directory_of_bamfiles"]
         if run_binbencher:
             expected_headers += ["reference"]
-        if taxvamb or taxometer:
+        if taxvamb or taxometer or taxvamb_and_taxometer:
             expected_headers += ["taxonomy"]
         path_contig_bamfiles, df = wss_file_checker(
             Logger(),
@@ -633,7 +639,7 @@ def main(
         expected_headers = ["sample", "composition", "rpkm"]
         if run_binbencher:
             expected_headers += ["reference"]
-        if taxvamb or taxometer:
+        if taxvamb or taxometer or taxvamb_and_taxometer:
             expected_headers += ["taxonomy"]
         path_composition_and_rpkm, df = wss_file_checker(
             Logger(),
@@ -645,7 +651,7 @@ def main(
     snakemake_runner = Snakemake_runner(logger)
     snakemake_runner.add_arguments(["-c", str(threads)])
 
-    if taxvamb or taxometer:
+    if taxvamb or taxometer or taxvamb_and_taxometer:
         snakemake_runner.add_to_config(f"taxonomy_information=yes")
 
     if contig_bamfiles is not None:

@@ -69,13 +69,13 @@ def test_bin_bench():
     binbencher.run_all_targets(dry_run_command=True)
     assert binbencher.has_been_run == [
         [
-            "julia",
+            "/home/las/ubuntu2/miniconda3/envs/ptracker_pipeline4/bin/julia",
             "./BinBencher",
             "sample_sample1_vamb_default_run_1_from_rpkm_comp",
             "reference",
         ],
         [
-            "julia",
+            "/home/las/ubuntu2/miniconda3/envs/ptracker_pipeline4/bin/julia",
             "./BinBencher",
             "sample_sample1_vamb_default_run_2_from_rpkm_comp",
             "reference",

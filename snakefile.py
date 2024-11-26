@@ -66,3 +66,5 @@ if config.get("taxonomy_information") != None:
 
 include: THIS_FILE_DIR / "snakemake_modules/vamb_default.py"
 include: THIS_FILE_DIR / "snakemake_modules/avamb_default.py"
+include: THIS_FILE_DIR / "snakemake_modules/taxvamb.py"
+include: THIS_FILE_DIR / "snakemake_modules/taxvamb_and_taxometer.py"
