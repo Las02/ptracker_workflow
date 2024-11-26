@@ -35,7 +35,7 @@ except ModuleNotFoundError as e:
         import click
     except ModuleNotFoundError as e:
         print("""\nCould not find module click or module rich_click, please make sure to create an environment containing 
-either of modueles eg. using conda or pip. See the user guide on the github README.\n""")
+either of modules eg. using conda or pip. See the user guide on the github README.\n""")
         raise e
 
 
