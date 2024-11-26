@@ -1,86 +1,9 @@
-files: "./config/sample_list_darwin.tsv"
-# files: "./config/sample_list.tsv"
-
-# Options from pau pipeline
-outdir: "./data"
-
-index_size: "3G"
-min_contig_len: "2000"
-plamb_mem: "150GB"
-plamb_ppn: "30"
-plamb_params: " -o C --gamma 0.1 -b 200 "
-plamb_preload: ""
-assembly_graph_dir: "/home/projects/ku_00197/data/ptracker/cache/as_mp_merged_reads_ef/Gastrointestinal/"
-renaming_file: "/home/projects/ku_00197/people/paupie/repo/ptracker_2/ptracker/tmp/renaming_files/renamed_Gastrointestinal"
-n2v_ed: "32"
-n2v_wl: "10"
-n2v_ws: "10"
-n2v_p: "0.1"
-n2v_q: "2.0"
-
 default_walltime: "48:00:00"
-default_threads: 1
+default_threads: 8
 default_mem_gb: 50
 
-# Setting
-mpSpades:
-  walltime: "15-00:00:00"
-  threads: 60
-  mem_gb: 950
-
-fastp:
-  walltime: "10-00:00:00"
-  threads: 8
-  mem_gb: 120
-
-spades:
-  walltime: "15-00:00:00"
-  threads: 16
-  mem_gb: 245
-
-SCAPP:
-  walltime: "45-00:00:00"
-  threads: 4
-  mem_gb: 150
-
-extract_neighs_from_n2v_embeddings:
-  walltime: "1-00:00:00"
-  threads: 63
-  mem_gb: 990
-
-index:
-  threads: 8
-  mem_gb: 120
-
-Strobealign_bam_default:
-  walltime: "10-00:00:00"
-  threads: 16
-  mem_gb: 245
-
-sort:
-  threads: 8
-  mem_gb: 120
-
-align_contigs:
-  threads: 8
-  mem_gb: 120
-
+# Ressoures settings
 vamb_asymmetric:
   walltime: "05-00:00:00"
   threads: 16
   mem_gb: 245
-
-run_geNomad:
-  walltime: "05-00:00:00"
-  threads: 16
-  mem_gb: 245
-
-create_assembly_alignment_graph:
-  walltime: "05-00:00:00"
-  threads: 5
-  mem_gb: 500
-
-run_vamb_asymmetric:
-  walltime: "05-00:00:00"
-  threads: 5
-  mem_gb: 250

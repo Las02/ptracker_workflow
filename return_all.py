@@ -76,6 +76,14 @@ class One_or_more_commit_hashes(click.ParamType):
         return list(value)
 
 
+class One_or_more_snakemake_arguments(click.ParamType):
+    name = "snakemake_arguments"
+
+    def convert(self, value, param, ctx):
+        value = value.split()
+        return value
+
+
 class wss_file_checker:
     name = "White Space Separated File"
 

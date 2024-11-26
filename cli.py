@@ -47,7 +47,8 @@ either of modules eg. using conda or pip. See the user guide on the github READM
 
 from return_all import *
 import yaml
-#from pandas.core.generic import config
+
+# from pandas.core.generic import config
 import os
 import sys
 import subprocess
@@ -562,6 +563,7 @@ Passing in this file means that the pipeline will not assemble the reads but run
 @click.option("-b", "--taxvamb", is_flag=True)
 @click.option("-b", "--taxvamb_and_taxometer", is_flag=True)
 @click.option("-b", "--taxometer", is_flag=True)
+@click.option("-b", "--snakemake_arguments", type=One_or_more_snakemake_arguments())
 # @click.option( "-o", "--vamb_options", default="master", help="Pass in options to vamb", show_default=True,)
 # @click.option( "-s", "--snakemake_options", default="master", help="Pass in options to snakemake", show_default=True,)
 @click.option(
@@ -587,6 +589,7 @@ def main(
     taxvamb: bool,
     taxometer: bool,
     taxvamb_and_taxometer: bool,
+    snakemake_arguments: str,
 ):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
@@ -595,7 +598,6 @@ def main(
     Additionally, the --output argument is required which defines the output directory.
     For Quick Start please see the README: https://github.com/Las02/ptracker_workflow/tree/try_cli
     """
-
 
     if output is None:
         raise click.BadParameter(
@@ -653,6 +655,10 @@ def main(
 
     snakemake_runner = Snakemake_runner(logger)
     snakemake_runner.add_arguments(["-c", str(threads)])
+
+    if snakemake_arguments is not None:
+        logger.print(f"Expanding snakemake arguments with: {snakemake_arguments}")
+        snakemake_runner.add_arguments(snakemake_arguments)
 
     if taxvamb or taxometer or taxvamb_and_taxometer:
         snakemake_runner.add_to_config(f"taxonomy_information=yes")
