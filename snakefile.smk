@@ -208,7 +208,7 @@ rule cat_contigs:
         module unload gcc/13.2.0
         module unload gcc/12.2.0
         module load gcc/13.2.0;"""
-        "python bin/vamb/src/concatenate.py {output} {input} "  # TODO should filter depending on size????
+        "python bin/vamb/src/concatenate.py {output} {input} --keep-names "  # TODO should filter depending on size????
         +LOG_CMD
         #"python bin/vamb/src/concatenate.py {output} {input} --keepnames"  # TODO should filter depending on size????
 
