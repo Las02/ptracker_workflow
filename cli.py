@@ -304,7 +304,7 @@ class Environment_setupper:
             # Set up yaml to build env with correct vamb version
             yaml_vamb_env = yaml.safe_load(in_file)
             # TODO add way to safely rename pip dependencies without it having to be the last element
-            yaml_vamb_env["dependencies"][-1]["pip"] = ["-e", str(vamb_location)]
+            yaml_vamb_env["dependencies"][-1]["pip"] = ["-e " + str(vamb_location)]
             yaml_vamb_env["name"] = str(yaml_vamb_env["name"] + f"_{refhash}")
             # Write the yaml file
             out_file_path = f"{self.dir_of_current_file}/envs/vamb_branch_{branch}_commit_{refhash}.yaml"

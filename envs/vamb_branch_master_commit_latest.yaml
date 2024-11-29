@@ -7,6 +7,5 @@ dependencies:
 - python==3.9.0
 - pip
 - pip:
-  - -e
-  - /home/las/benchmark_vamb/ptracker_workflow/bin/vamb_branch_master_commit_latest
+  - -e /maps/projects/rasmussen/scratch/ptracker/Benchmark_vamb_cli/bin/vamb_branch_master_commit_latest
 name: vamb_env_latest

@@ -17,4 +17,4 @@ setup_env:
 test_contig_bamfiles_:
 	# python3 cli.py
 	# ./cli.py --output tmpdir --contig_bamfiles contig_bamfiles --taxvamb -n --vamb_default --avamb --runtimes 2
-	./cli.py --output tmpdir --contig_bamfiles test_stuff/contig_bamfiles.tsv --vamb_default  --runtimes 2
+	./cli.py --output tmpdir --contig_bamfiles test_stuff/contig_bamfiles.tsv -t 8 --vamb_default  --runtimes 2
