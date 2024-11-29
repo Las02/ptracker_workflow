@@ -252,7 +252,7 @@ rule cat_contigs:
     log: config.get("log", "log/") + "{key}_" + rulename
     conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell: 
-        "python {params.script} {output} {input} 2> {log} "  # TODO should filter depending on size????
+        "python {params.script} {output} {input} --keep-names 2> {log} "  # TODO should filter depending on size????
 
 rulename = "get_contig_names"
 rule get_contig_names:
