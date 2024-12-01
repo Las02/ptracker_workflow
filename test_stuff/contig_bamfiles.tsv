@@ -1,2 +1,2 @@
-sample      contig                                   directory_of_bamfiles 
-sample1     data/vambnew/Airways/contigs_2kbp.fna    data/vambnew/Airways/bam
+sample      contig                                   directory_of_bamfiles        reference
+sample1     data/vambnew/Airways/contigs_2kbp.fna    data/vambnew/Airways/bam      data/vambnew/Airways/reference.json

@@ -1,0 +1,2 @@
+sample      contig                                   directory_of_bamfiles        taxonomy latent cluster markers
+sample1     data/vambnew/Airways/contigs_2kbp.fna    data/vambnew/Airways/bam     data/vambnew/Airways/formattedformatted_mmseqs_pred.tsv data/vambnew/Airways/vambout/latent.npz data/vambnew/Airways/vambout/vae_clusters_split.tsv data/vambnew/Airways/markers.npz

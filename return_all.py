@@ -135,13 +135,23 @@ class wss_file_checker:
                 ctx,
             )
 
-        # Assert if file contains the correct column headers
-        if sorted(list(df.columns)) != sorted(self.expected_headers):
+        missing_headers = set(self.expected_headers) - set(df.columns)
+        if missing_headers:
             raise self.fail(
-                f"{value!r} Does not contain the correct headers\nError Message:\nExpected headers: {self.expected_headers}, found headers: {list(df.columns)}",
+                f"{value!r} Does not contain the correct headers\nError Message:\nExpected headers: {self.expected_headers}, found headers: {list(df.columns)}, missing: {missing_headers}",
                 param,
                 ctx,
             )
+        # Assert if file contains the correct column headers
+        if sorted(list(df.columns)) != sorted(self.expected_headers):
+            self.logger.warn(
+                f"{value!r} Does does contain more headers than nessecary headers\nError Message:\nExpected headers: {self.expected_headers}, found headers: {list(df.columns)}",
+            )
+            # raise self.fail(
+            #     f"{value!r} Does not contain the correct headers\nError Message:\nExpected headers: {self.expected_headers}, found headers: {list(df.columns)}",
+            #     param,
+            #     ctx,
+            # )
 
         # Assert if file has missing values
         columns_withnan = df[df.isnull().any(axis=1)]

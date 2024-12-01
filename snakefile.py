@@ -27,6 +27,10 @@ mem_gb_fn = lambda rulename: config.get(
 contig = ""
 bamfiles = ""
 taxonomy = ""
+cluster = ""
+latent = ""
+markers = ""
+bamfiles_list = ""
 
 ## Read in the sample data if contig and bamfiles are defined
 if config.get("contig_bamfiles") != None:
@@ -65,7 +69,31 @@ if config.get("taxonomy_information") != None:
 
     taxonomy = lambda wildcards: sample_paths[wildcards.sample]["taxonomy"]
 
+if config.get("latent_cluster_markers") != None:
+    df = pd.read_csv(config["input_data"], sep="\s+", comment="#")
+    for sample, latent, cluster, markers in zip(df["sample"], df.latent, df.cluster, df.markers):
+        sample = str(sample)
+        sample_paths[sample]["cluster"] = cluster
+        sample_paths[sample]["latent"] = latent
+        sample_paths[sample]["markers"] = markers
+
+    cluster = lambda wildcards: sample_paths[wildcards.sample]["cluster"]
+    latent = lambda wildcards: sample_paths[wildcards.sample]["latent"]
+    markers = lambda wildcards: sample_paths[wildcards.sample]["markers"]
+    # import os
+    # im sorry...
+    # bamfiles_list = lambda wildcards: [sample_paths[wildcards.sample]["directory_of_bamfiles"] + "/" + x for x in list(os.listdir(sample_paths[wildcards.sample]["directory_of_bamfiles"]))]
+
+# if config.get("recluster") != None:
+#     df = pd.read_csv(config["recluster"], sep="\s+", comment="#")
+#     for sample, taxonomy in zip(df["sample"], df.taxonomy):
+#         sample = str(sample)
+#         sample_paths[sample]["taxonomy"] = taxonomy
+
+
 include: THIS_FILE_DIR / "snakemake_modules/vamb_default.py"
-include: THIS_FILE_DIR / "snakemake_modules/avamb_default.py"
-include: THIS_FILE_DIR / "snakemake_modules/taxvamb.py"
-include: THIS_FILE_DIR / "snakemake_modules/taxvamb_and_taxometer.py"
+include: THIS_FILE_DIR / "snakemake_modules/avamb_default.py" 
+include: THIS_FILE_DIR / "snakemake_modules/taxvamb.py" # TODO have reuse taxonomy
+include: THIS_FILE_DIR / "snakemake_modules/taxometer.py" # TO implement reruns of rpkm etc..
+include: THIS_FILE_DIR / "snakemake_modules/recluster.py" 
+# include: THIS_FILE_DIR / "snakemake_modules/taxvamb_and_taxometer.py"

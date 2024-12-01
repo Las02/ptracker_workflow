@@ -6,13 +6,12 @@ rulename = "taxometer_for_taxvamb"
 rule taxometer_for_taxvamb:
     input:
         contig = contig,
-        #bamfiles = bamfiles,
+        bamfiles = bamfiles,
         taxonomy = taxonomy
     output:
         # TODO set as correct
-        taxonomy_taxometer = OUTDIR / ("sample_{sample}_" + VAMB_TYPE + "_run_{run_number}_from_bam_contig/taxonomy.tax"), 
-        dir = OUTDIR / ("sample_{sample}_" + VAMB_TYPE + "_run_{run_number}_from_bam_contig"),
-
+        # taxonomy_taxometer = OUTDIR / ("sample_{sample}_" + VAMB_TYPE + "_taxometer"), 
+        dir = OUTDIR / ("sample_{sample}_" + VAMB_TYPE + "_taxometer"),
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     conda: THIS_FILE_DIR / "envs" / config["vamb_conda_env_yamlfile"]
@@ -20,7 +19,7 @@ rule taxometer_for_taxvamb:
         """
         rm -rf {output.dir}
         vamb taxometer --taxonomy {input.taxonomy} --outdir {output.dir} --fasta {input.contig} \
-        -p {threads} --bamfiles {input.bamfiles} -m 2000
+        -p {threads} --bamdir {input.bamfiles} -m 2000
         """
 
 rulename = "taxvamb_and_taxometer"
@@ -29,7 +28,7 @@ rule taxvamb_and_taxometer:
         contig = contig,
         bamfiles = bamfiles,
         # TODO set as correct
-        taxonomy_taxometer = OUTDIR / ("sample_{sample}_" + VAMB_TYPE + "_run_1_from_bam_contig/taxonomy.tax"), 
+        taxonomy_taxometer = OUTDIR / ("sample_{sample}_" + VAMB_TYPE + "_taxometer"), 
     output:
         composition = OUTDIR / ("sample_{sample}_" + VAMB_TYPE + "_run_1_from_bam_contig/composition.npz"),
         rpkm = OUTDIR / ("sample_{sample}_" + VAMB_TYPE + "_run_1_from_bam_contig/abundance.npz"),
@@ -41,7 +40,7 @@ rule taxvamb_and_taxometer:
         """
         rm -rf {output.dir}
         vamb bin taxvamb --taxonomy {input.taxonomy} --outdir {output.dir} --fasta {input.contig} \
-        -p {threads} --bamfiles {input.bamfiles} -m 2000
+        -p {threads} --bamdir {input.bamfiles} -m 2000
         """
 
 rulename = "taxvamb_rpkm_comp"

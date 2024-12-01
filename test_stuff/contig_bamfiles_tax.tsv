@@ -1,0 +1,4 @@
+sample      contig                                   directory_of_bamfiles        taxonomy   reference_taxometer
+sample1     data/vambnew/Airways/contigs_2kbp.fna    data/vambnew/Airways/bam     data/vambnew/Airways/formattedformatted_mmseqs_pred.tsv data/vambnew/Airways/gtdb_truth.csv
+
+ 

@@ -38,6 +38,9 @@ Should only run first part of vamb once
 Assemblies + Organisms .
 
 
+## Found things
+1) what if contig dont have predicted tax? if left empty the program crashes
+
 
 
 ## TODO
@@ -79,6 +82,7 @@ later: LR with DB Scan algo
 Filter eg. 10KB 
 
 ---
+
 
 
 

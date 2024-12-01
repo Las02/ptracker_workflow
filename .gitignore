@@ -1,4 +1,7 @@
 /snakemake_output/
+/run_all/
+/tmpdir/
+tmpdir/*
 /data/
 /genomad_db/
 /trash
@@ -20,3 +23,4 @@ core.*
 snakejob*
 /results/
 log
+tmpdir

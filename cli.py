@@ -421,8 +421,12 @@ class BinBencher(Cli_runner):
         for target in self.targets:
             self.clear_arguments()
             self.add_arguments([self.tool_to_run])
-            self.add_arguments([target])
             self.add_arguments([self.reference])
+            # Only organisms
+            self.add_arguments(["true"])
+            self.add_arguments([target])
+            # Assembly
+            self.add_arguments(["true"])
             self.run(dry_run_command=dry_run_command)
             if not dry_run_command:
                 self.target_result[target] = self.get_output()
@@ -436,14 +440,14 @@ class BinBencher(Cli_runner):
         if dry_run_command:
             print("running:", self.argument_holder)
         else:
-            # print("Running:")
-            # self.prettyprint_args()
-            # print(f"cwd: {self._cwd}")
+            print("Running:")
+            self.prettyprint_args()
+            print(f"cwd: {self._cwd}")
             self.output = subprocess.run(
                 self.argument_holder, cwd=self._cwd, stdout=subprocess.PIPE
             )
-            # print("Ran:")
-            # self.prettyprint_args()
+            print("Ran:")
+            self.prettyprint_args()
 
         self.has_been_run.append(self.argument_holder)
 
@@ -463,9 +467,10 @@ def output_binbencher_results(targets_dict, df, output_file, logger, refhash):
     sample2ref = {sample: ref for sample, ref in zip(df["sample"], df["reference"])}
     for sample in targets_dict.keys():
         binbencher = BinBencher(
-            reference=sample2ref[sample], targets=targets_dict[sample]
+            reference=sample2ref[sample], targets=[x / "vae_clusters_split.tsv" for x in targets_dict[sample]]
         )
-        binbencher.tool_to_run = "./test_stuff/test_binbench.jl"  # WARNING remove this
+        # binbencher.tool_to_run = "./test_stuff/test_binbench.jl"  # WARNING remove this
+        binbencher.tool_to_run = os.path.dirname(os.path.realpath(__file__)) + "/Binbench.jl"  
         binbencher.run_all_targets(dry_run_command=False)
         targets2benchmark.update(binbencher.get_benchmarks())
 
@@ -528,6 +533,21 @@ Passing in this file means that the pipeline will not assemble the reads but run
         """,
     type=click.Path(exists=True),
 )
+# @click.option(
+#     "-r",
+#     "--recluster",
+#     help=f"""\bWhite space separated file containing read pairs and paths to Spades output assembly directories.
+# <Notice the header names are required to be: sample, composition and rpkm>
+# This file could look like:  
+# ```
+# sample      composition                       rpkm
+# sample1     path/to/sample_1/composition.npz  path/to/sample_1/rpkm.npz
+# sample2     path/to/sample_2/composition.npz  path/to/sample_2/rpkm.npz
+# ```
+# Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
+#         """,
+#     type=click.Path(exists=True),
+# )
 @click.option(
     "-t",
     "--threads",
@@ -561,9 +581,11 @@ Passing in this file means that the pipeline will not assemble the reads but run
 @click.option("-d", "--avamb", is_flag=True)
 @click.option("-b", "--run_binbencher", is_flag=True)
 @click.option("-b", "--taxvamb", is_flag=True)
-@click.option("-b", "--taxvamb_and_taxometer", is_flag=True)
-@click.option("-b", "--taxometer", is_flag=True)
-@click.option("-b", "--snakemake_arguments", type=One_or_more_snakemake_arguments())
+@click.option("-r", "--recluster", is_flag=True)
+@click.option("-o", "--taxvamb_and_taxometer", is_flag=True)
+@click.option("-tx", "--taxometer", is_flag=True)
+@click.option("-btx", "--benchmark_taxometer", is_flag=True)
+@click.option("-s", "--snakemake_arguments", type=One_or_more_snakemake_arguments())
 # @click.option( "-o", "--vamb_options", default="master", help="Pass in options to vamb", show_default=True,)
 # @click.option( "-s", "--snakemake_options", default="master", help="Pass in options to snakemake", show_default=True,)
 @click.option(
@@ -588,6 +610,8 @@ def main(
     run_binbencher: bool,
     taxvamb: bool,
     taxometer: bool,
+    recluster: bool,
+    benchmark_taxometer: bool,
     taxvamb_and_taxometer: bool,
     snakemake_arguments: str,
 ):
@@ -598,6 +622,13 @@ def main(
     Additionally, the --output argument is required which defines the output directory.
     For Quick Start please see the README: https://github.com/Las02/ptracker_workflow/tree/try_cli
     """
+
+    if benchmark_taxometer:
+        if not taxometer:
+            raise click.BadParameter(
+                "--benchmark_taxometer is defined but taxometer is not",
+            )
+        
 
     if output is None:
         raise click.BadParameter(
@@ -621,10 +652,10 @@ def main(
         vamb_types.append("avamb")
     if taxvamb:
         vamb_types.append("taxvamb")
-    if taxvamb_and_taxometer:
-        vamb_types.append("taxvamb_and_taxometer")
+    if taxometer:
+        vamb_types.append("taxometer")
 
-    if len(vamb_types) == 0:
+    if len(vamb_types) == 0 and not recluster:
         raise click.BadParameter("No vamb types is defined")
 
     logger = Logger()
@@ -633,6 +664,10 @@ def main(
         expected_headers = ["sample", "contig", "directory_of_bamfiles"]
         if run_binbencher:
             expected_headers += ["reference"]
+        if recluster:
+            expected_headers += ["latent", "cluster", "markers"]
+        if benchmark_taxometer:
+            expected_headers += ["reference_taxometer"]
         if taxvamb or taxometer or taxvamb_and_taxometer:
             expected_headers += ["taxonomy"]
         path_contig_bamfiles, df = wss_file_checker(
@@ -645,13 +680,26 @@ def main(
         expected_headers = ["sample", "composition", "rpkm"]
         if run_binbencher:
             expected_headers += ["reference"]
+        if benchmark_taxometer:
+            expected_headers += ["reference_taxometer"]
         if taxvamb or taxometer or taxvamb_and_taxometer:
             expected_headers += ["taxonomy"]
+        if recluster:
+            expected_headers += ["latent", "cluster", "markers"]
         path_composition_and_rpkm, df = wss_file_checker(
             Logger(),
             expected_headers=expected_headers,
             none_file_columns=["sample"],
-        ).get_info(composition_and_rpkm, param="contig_bamfiles")
+        ).get_info(composition_and_rpkm, param="composition_and_rpkm")
+
+    # if recluster is not None:
+    #     expected_headers = ["sample", "composition", "rpkm", "latent", "cluster", "markers"]
+    #     path_recluster, df_recluster = wss_file_checker(
+    #         Logger(),
+    #         expected_headers=expected_headers,
+    #         none_file_columns=["sample"],
+    #     ).get_info(recluster, param="recluster")
+
 
     snakemake_runner = Snakemake_runner(logger)
     snakemake_runner.add_arguments(["-c", str(threads)])
@@ -662,6 +710,9 @@ def main(
 
     if taxvamb or taxometer or taxvamb_and_taxometer:
         snakemake_runner.add_to_config(f"taxonomy_information=yes")
+
+    if recluster:
+        snakemake_runner.add_to_config(f"latent_cluster_markers=yes")
 
     if contig_bamfiles is not None:
         smk_target_creator = Smk_target_creater(
@@ -689,6 +740,16 @@ def main(
             f"Running snakemake with {threads} thread(s), from composition and rpkm"
         )
 
+    # if recluster is not None:
+    #     snakemake_runner.add_to_config(f"recluster={path_recluster}")
+    #     snakemake_runner.to_print_while_running_snakemake += (
+    #         f"...and running reclustering"
+    #     )
+
+    # TODO remove ?
+    snakemake_runner.add_arguments(["--keep-incomplete"])
+    snakemake_runner.add_arguments(["-p"])
+
     if dryrun:
         snakemake_runner.add_arguments(["-np"])
 
@@ -701,8 +762,22 @@ def main(
         output_dir_refhash = Path(output) / refhash
         snakemake_runner.output_directory = output_dir_refhash
 
-        # Set targets snakemake try to create
+        # create targets snakemake try to create
         targets = smk_target_creator.create_targets(output_dir=output_dir_refhash)
+
+        # Special make them for recluster.. TODO refactor
+        if recluster:
+            add_to_targets = []
+            for sample in list(df["sample"]):
+                for number in range(1,runtimes+1):
+                    if composition_and_rpkm is not None:
+                        add_to_targets.append(output_dir_refhash / f"sample_{sample}_run_{number}_from_comp_rpkm" )
+                    if  contig_bamfiles is not None:
+                        add_to_targets.append(output_dir_refhash / f"sample_{sample}_run_{number}_from_bam" )
+            targets += add_to_targets
+
+
+        # Set targets
         snakemake_runner.set_target_rule(targets)
 
         # Create vamb version w.r.t. to the refhash
@@ -722,7 +797,7 @@ def main(
         snakemake_runner.run()
 
         # TODO this section should be moved down such that it takes the arguments and then
-        # writes to the file without appendig
+        # writes to the file without appending
         targets_dict = smk_target_creator.create_targets(
             output_dir=output_dir_refhash, as_dict=True
         )
@@ -734,6 +809,26 @@ def main(
                 logger=logger,
                 refhash=refhash,
             )
+
+        if benchmark_taxometer:
+            logger.print("Starting benchmarking of taxometer")
+            taxometer_benchmark_creator = Smk_target_creater(
+                samples=list(df["sample"]),
+                vambTypes=["taxometer"],
+                runtimes=runtimes,
+                from_bamfiles=True,
+            )
+            targets_dict = taxometer_benchmark_creator.create_targets(
+            output_dir=output_dir_refhash, as_dict=True
+            )
+            import taxbench
+            logger.print("Benchmarking", targets_dict)
+            sample_truth = {sample:truth for sample, truth in zip(df["samples"], df["reference_taxometer"])}
+            output = defaultdict()
+            for sample in targets_dict.keys():
+                scores = taxbench.load_scores(sample_truth[sample], targets_dict[sample])
+                defaultdict[sample] = taxbench.weighted_score(scores)
+            print(defaultdict)
 
 
 if __name__ == "__main__":
