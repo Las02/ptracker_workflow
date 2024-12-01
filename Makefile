@@ -31,8 +31,10 @@ test_taxometer_bench:
 	./cli.py --output Airways --benchmark_taxometer --contig_bamfiles test_stuff/contig_bamfiles_tax.tsv -t 8  --taxometer --runtimes 2 -n --refhash latest 
 
 run_all_no_benchmark_lastest:
-	./cli.py --output run_all --contig_bamfiles test_stuff/run_all_latest.tsv -n -t 8 \
-		--taxvamb --vamb_default --avamb --taxometer --runtimes 3  --refhash latest 
+	./cli.py --output run_all --contig_bamfiles test_stuff/run_all_latest.tsv -t 8 \
+		--taxvamb --vamb_default --avamb --taxometer --runtimes 3  --refhash latest \
+		--snakemake_arguments \
+		'--profile /maps/projects/rasmussen/scratch/ptracker/Benchmark_vamb_cli/snakemake_cluster/'
 run_all_no_benchmark_refhash:
 	./cli.py --output run_all --contig_bamfiles test_stuff/run_all_mmseq_needed.tsv -n -t 8 \
 		--taxvamb --vamb_default --avamb --taxometer --runtimes 3  --refhash d35788c910  

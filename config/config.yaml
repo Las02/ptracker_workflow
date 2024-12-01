@@ -2,8 +2,8 @@ default_walltime: "48:00:00"
 default_threads: 8
 default_mem_gb: 50
 
-# Ressoures settings
-vamb_default:
-  walltime: "05-00:00:00"
-  threads: 16
-  mem_gb: 245
+# # Ressoures settings
+# vamb_default:
+#   walltime: "05-00:00:00"
+#   threads: 16
+#   mem_gb: 245
