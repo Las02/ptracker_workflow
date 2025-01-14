@@ -2,7 +2,7 @@
 Pipeline for running Plamb: https://github.com/RasmussenLab/vamb/tree/vamb_n2v_asy
 
 
-## Quick Start
+## Quick Start :rocket:
 ```
 # Create environment and install dependencies 
 conda create -n ptracker_pipeline -c conda-forge -c bioconda snakemake-minimal pandas mamba
