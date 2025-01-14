@@ -59,6 +59,19 @@ mpSpades:
 ```
 if no resourcess are configurated for a rule the defaults will be used which are also defined in: ``` config/config.yaml ```
 
+## Running on cluster (! needs to be tested !)
+You can extend the arguments passed to snakemake by the '--snakemake_arguments' flag
+This can then be used to have snakemake submit jobs to a cluster.
+On SLURM this could look like
+
+```
+./cli.py <arguments> --snakemake_arguments \
+    '--jobs 16 --max-jobs-per-second 5 --max-status-checks-per-second 5 --latency-wait 60 \
+    --cluster "sbatch  --output={rule}.%j.o --error={rule}.%j.e \
+    --time={resources.walltime} --job-name {rule}  --cpus-per-task {threads} --mem {resources.mem_gb}G "'
+```
+
+
 ### Running using snakemake CLI directly
 The pipeline can be run without using the CLI wrapper around snakemake
 
