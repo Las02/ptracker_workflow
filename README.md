@@ -18,7 +18,7 @@ git clone https://github.com/Las02/ptracker_workflow -b try_cli
 ./ptracker_workflow/cli.py --reads <read_file> 
 ```
 This file could look like:
-<Notice the header names are required to be: read1 and read2> 
+(:point_right: Notice the header names are required to be: read1 and read2)
 
 ``` 
 read1                          read2
@@ -36,7 +36,7 @@ This directory must contain the following 3 files which Spades produces:
 | A metadata file                     | `contigs.paths`                         |
 
 This file could look like:
- <Notice the header names are required to be: read1, read2 and assembly_dir> 
+ (:point_right: Notice the header names are required to be: read1, read2 and assembly_dir) 
 
 ``` 
 read1                          read2                         assembly_dir                                           
