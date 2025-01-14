@@ -45,7 +45,7 @@ im/a/path/to/sample_2/read1    im/a/path/to/sample_2/read2   path/sample_2/Spade
 ```
 
 ## Advanced
-
+### Resources 
 
 The pipeline can be configurated in: ``` config/config.yaml ```
 Here the resources for each rule can be configurated as follows
@@ -56,6 +56,9 @@ mpSpades:
   mem_gb: 950
 ```
 if no resourcess are configurated for a rule the defaults will be used which are also defined in: ``` config/config.yaml ```
+
+### Running using snakemake CLI directly
+The pipeline can be run without using the CLI wrapper around snakemake
 
 The input files for the pipeline can be configurated in ``` config/accesions.txt ``` 
 As an example this could look like:
