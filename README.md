@@ -94,8 +94,9 @@ and running the pipeline with 4 threads
 	snakemake -p -c4 --snakefile snakefile.smk --use-conda
 ```
 
+
+## File Structure
 ```
-## Important Files
 - snakefile.smk: The snakemake pipeline
 - utils.py: utils used by the pipeline
 - config: directory with the configuration files
@@ -107,3 +108,4 @@ and running the pipeline with 4 threads
 Makefile - various small scripts for running the pipeline
 clustersubmit.sh - script for submitting the snakefile to SLURM
 parse_snakemake_output.py - small script for viewing snakefile logs
+```
