@@ -57,7 +57,8 @@ mpSpades:
   threads: 60
   mem_gb: 950
 ```
-if no resourcess are configurated for a rule the defaults will be used which are also defined in: ``` config/config.yaml ```
+if no resourcess are configurated for a rule the defaults will be used which are also defined in: ``` config/config.yaml ```  
+If these exceed the resourcess available they will be scaled down to match the hardware available. 
 
 ## Running on cluster (! needs to be tested !)
 You can extend the arguments passed to snakemake by the '--snakemake_arguments' flag
