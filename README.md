@@ -15,9 +15,9 @@ git clone https://github.com/Las02/ptracker_workflow -b try_cli
 ```
  To run the entire pipeline including assembly pass in a whitespace separated file containing the reads:
 ```
-./ptracker_workflow/cli.py --reads <read_file> 
+./ptracker_workflow/cli.py --reads <read_file>  --output <output_directory>
 ```
-This file could look like:
+The <read_file> could look like:
 
 
 ``` 
