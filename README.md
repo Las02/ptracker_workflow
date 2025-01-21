@@ -31,7 +31,7 @@ To dry run the pipeline before pass in the --dryrun flag
 
 To run the pipeline from allready assembled reads pass in a whitespace separated file containing the reads and the path to the spades assembly directories for each read pair.
 ```
-./ptracker_workflow/cli.py --reads_and_assembly_dir <reeads_and_assembly_dir (spades output)>  --output <output_directory>
+./ptracker_workflow/cli.py --reads_and_assembly_dir <reads_and_assembly_dir>  --output <output_directory>
 ```
 This directory must contain the following 3 files which Spades produces: 
 | Description                         | File Name from Spades                               |
