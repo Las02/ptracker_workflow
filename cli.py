@@ -39,15 +39,16 @@ either of modules eg. using conda or pip. See the user guide on the github READM
         raise e
 
 
-from pandas.core.generic import config
-from return_all import *
 import os
-import sys
-import subprocess
-from pathlib import Path
 import shutil
+import subprocess
+import sys
+from pathlib import Path
 from typing import List
 
+from pandas.core.generic import config
+
+from return_all import *
 
 # Make both -h and --help available instead of just --help
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -56,8 +57,9 @@ CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 class Logger:
     def print(self, arg):
         click.echo(click.style(arg, fg="yellow"))
+
     def warn(self, arg):
-        click.echo(click.style("WARNING:   " + arg, fg="red", underline = True))
+        click.echo(click.style("WARNING:   " + arg, fg="red", underline=True))
 
 
 class Cli_runner:
@@ -65,10 +67,12 @@ class Cli_runner:
     _command_has_been_added = False
 
     def add_command_to_run(self, command_to_run):
-        if _command_has_been_added:
-            raise Exception(f"A command has allready been added: {self.argument_holder[0]}")
+        if self._command_has_been_added:
+            raise Exception(
+                f"A command has allready been added: {self.argument_holder[0]}"
+            )
         self.argument_holder = [command_to_run] + self.argument_holder
-        _command_has_been_added = True
+        self._command_has_been_added = True
 
     def add_arguments(self, arguments: List):
         self.argument_holder += arguments
@@ -83,7 +87,7 @@ class Cli_runner:
         else:
             print("Running:")
             self.prettyprint_args()
-            subprocess.run(self.argument_holder) 
+            subprocess.run(self.argument_holder)
             print("Ran:")
             self.prettyprint_args()
 
@@ -119,17 +123,19 @@ class Snakemake_runner(Cli_runner):
 See following installation guide: https://snakemake.readthedocs.io/en/stable/getting_started/installation.html"""
             )
 
-        if shutil.which('mamba') is None:
-            self.logger.warn("Could not find mamba installation, is the correct environment activated?")
-            self.logger.warn("Defaulting to use conda to build environments for snakemake, this will be slower")
+        if shutil.which("mamba") is None:
+            self.logger.warn(
+                "Could not find mamba installation, is the correct environment activated?"
+            )
+            self.logger.warn(
+                "Defaulting to use conda to build environments for snakemake, this will be slower"
+            )
             self.add_arguments(["--conda-frontend", "conda"])
-
 
     def add_to_config(self, to_add):
         self.config_options += [to_add]
 
     def run(self):
-
         # use conda: always
         self.add_arguments(["--use-conda"])
         self.add_arguments(["--rerun-incomplete"])
