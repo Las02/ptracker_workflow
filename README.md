@@ -80,6 +80,13 @@ On SLURM this could look like
     --cluster "sbatch  --output={rule}.%j.o --error={rule}.%j.e \
     --time={resources.walltime} --job-name {rule}  --cpus-per-task {threads} --mem {resources.mem_gb}G "'
 ```
+on PBS this could like:
+```
+./cli.py <arguments> --snakemake_arguments \
+    '--jobs 16 --max-jobs-per-second 5 --max-status-checks-per-second 5 --latency-wait 60 \
+    --cluster "sbatch  --output={rule}.%j.o --error={rule}.%j.e \
+    --time={resources.walltime} --job-name {rule}  --cpus-per-task {threads} --mem {resources.mem_gb}G "'
+```
 
 
 ### Running using snakemake CLI directly
