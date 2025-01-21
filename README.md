@@ -5,7 +5,7 @@ Pipeline for running Plamb: https://github.com/RasmussenLab/vamb/tree/vamb_n2v_a
 ## Quick Start :rocket:
 ```
 # Create environment and install dependencies 
-conda create -n ptracker_pipeline -c conda-forge -c bioconda snakemake pandas mamba
+conda create -n ptracker_pipeline -c conda-forge -c bioconda 'snakemake==8.26.0' 'pandas==2.2.3' 'mamba==1.5.9'
 conda activate ptracker_pipeline
 pip install rich-click
 
