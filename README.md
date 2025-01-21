@@ -55,10 +55,10 @@ im/a/path/to/sample_2/read1    im/a/path/to/sample_2/read2   path/sample_2/Spade
 The pipeline can be configurated in: ``` config/config.yaml ```
 Here the resources for each rule can be configurated as follows
 ```
-mpSpades:
+spades:
   walltime: "15-00:00:00"
-  threads: 60
-  mem_gb: 950
+  threads: 16
+  mem_gb: 245
 ```
 if no resourcess are configurated for a rule the defaults will be used which are also defined in: ``` config/config.yaml ```  
 If these exceed the resourcess available they will be scaled down to match the hardware available. 
