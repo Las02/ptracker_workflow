@@ -124,3 +124,5 @@ Makefile - various small scripts for running the pipeline
 clustersubmit.sh - script for submitting the snakefile to SLURM
 parse_snakemake_output.py - small script for viewing snakefile logs
 ```
+## TODO
+[ ] envs/pipeline_conda.yaml refers to specific path - change to releative
