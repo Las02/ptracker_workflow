@@ -1,4 +1,4 @@
-files: "./config/sample_list_darwin.tsv"
+files: "example_file.tsv"
 # files: "./config/sample_list.tsv"
 
 # Options from pau pipeline
@@ -10,8 +10,6 @@ plamb_mem: "150GB"
 plamb_ppn: "30"
 plamb_params: " -o C --gamma 0.1 -b 200 "
 plamb_preload: ""
-assembly_graph_dir: "/home/projects/ku_00197/data/ptracker/cache/as_mp_merged_reads_ef/Gastrointestinal/"
-renaming_file: "/home/projects/ku_00197/people/paupie/repo/ptracker_2/ptracker/tmp/renaming_files/renamed_Gastrointestinal"
 n2v_ed: "32"
 n2v_wl: "10"
 n2v_ws: "10"

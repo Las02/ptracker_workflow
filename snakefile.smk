@@ -8,23 +8,12 @@ import collections
 import os
 from pathlib import Path
 
-from pandas._libs import OutOfBoundsDatetime
-
-# shell.prefix("""
-#     module purge
-#     module unload gcc/13.2.0
-#     module unload gcc/12.2.0
-#     module load gcc/13.2.0;
-# """)
-
+## Defining various paths
 # Dir defined by user
 output_directory = config.get("output_directory")
-# Set as empty path if not defined meaning will not have effect
+# Set as empty path if not defined meaning it will not have an effect
 output_directory = Path("") if output_directory is None else Path(output_directory)
-
-
-# Paths
-OUTDIR= output_directory / "outdir_plamb" #config["outdir"] #get_config('outdir', 'outdir_plamb', r'.*') # TODO fix
+OUTDIR= output_directory / "outdir_plamb" 
 PAU_SRC_DIR = THIS_FILE_DIR / "bin/plamb_ptracker_dir/src/workflow/src"  
 
 # Define deault threads/walltime/mem_gb
@@ -32,24 +21,12 @@ default_walltime = config.get("default_walltime")
 default_threads = config.get("default_threads")
 default_mem_gb = config.get("default_mem_gb")
 
-# Functions to get the config-defined threads/walltime/mem_gb for a rule and if not defined the default
+# Functions to get the config-defined threads/walltime/mem_gb for a rule and if the then return the default resources 
 threads_fn = lambda rulename: config.get(rulename, {"threads": default_threads}).get("threads", default_threads) 
 walltime_fn  = lambda rulename: config.get(rulename, {"walltime": default_walltime}).get("walltime", default_walltime) 
 mem_gb_fn  = lambda rulename: config.get(rulename, {"mem_gb": default_mem_gb}).get("mem_gb", default_mem_gb) 
 
-# # Read in the sample data
-# df = pd.read_csv(config["files"], sep="\s+", comment="#")
-# sample_id = collections.defaultdict(list)
-# sample_id_path = collections.defaultdict(dict)
-# for sample, id, read1, read2 in zip(df.SAMPLE, df.ID, df.READ1, df.READ2):
-#     id = str(id)
-#     sample = str(sample)
-#     sample_id[sample].append(id)
-#     sample_id_path[sample][id] = [read1, read2]
-# Read in the sample data
-
-
-# Default values for these params
+# Default values for paths
 contigs =  OUTDIR / "data/sample_{key}/spades_{id}/contigs.fasta"
 contigs_paths =  OUTDIR / "data/sample_{key}/spades_{id}/contigs.paths"
 assembly_graph = OUTDIR / "data/sample_{key}/spades_{id}/assembly_graph_after_simplification.gfa"
@@ -66,29 +43,6 @@ if config.get("read_file") != None:
         sample = "Plamb_Ptracker"
         sample_id[sample].append(id)
         sample_id_path[sample][id] = [read1, read2]
-
-# if config.get("read_assembly_file") != None:
-#     df = pd.read_csv(config["read_assembly_file"], sep="\s+", comment="#")
-#     print(df)
-#     sample_id = collections.defaultdict(list)
-#     sample_id_path = collections.defaultdict(dict)
-#     sample_id_path_assembly = collections.defaultdict(dict)
-#     sample_id_path_contig = collections.defaultdict(dict)
-#     sample_id_path_contigpaths = collections.defaultdict(dict)
-#     for id, read1, read2, assembly, contig, contig_path in zip(df["sample"], df.read1, df.read2, df.assembly_graph, df.contig, df.contig_paths):
-#         id = str(id)
-#         sample = "Plamb_Ptracker"
-#         sample_id[sample].append(id)
-#         sample_id_path[sample][id] = [read1, read2]
-#         sample_id_path_assembly[sample][id] = [assembly]
-#         sample_id_path_contig[sample][id] = [contig]
-#         sample_id_path_contigpaths [sample][id] = [contig_path]
-#
-#     # Redefin definede paths to files
-#     contigs =  lambda wildcards: sample_id_path_contig[wildcards.key][wildcards.id][0] 
-#     contigs_paths =  lambda wildcards: sample_id_path_contigpaths[wildcards.key][wildcards.id][0] 
-#     assembly_graph =  lambda wildcards: sample_id_path_assembly[wildcards.key][wildcards.id][0] 
-
 
 if config.get("read_assembly_dir") != None:
     df = pd.read_csv(config["read_assembly_dir"], sep="\s+", comment="#")
@@ -107,22 +61,7 @@ if config.get("read_assembly_dir") != None:
     assembly_graph  =  lambda wildcards: Path(sample_id_path_assembly[wildcards.key][wildcards.id][0]) / "assembly_graph_after_simplification.gfa"
     contigs_paths  =  lambda wildcards: Path(sample_id_path_assembly[wildcards.key][wildcards.id][0]) / "contigs.paths"
 
-# # Print out run information
-# print("Running for the following:")
-# for sample in sample_id.keys():
-#     print("-"*20)
-#     print("Sample:", f"{sample}:")
-#     for id in sample_id[sample]:
-#         print(f"{id}:")
-#         print(sample_id_path[sample][id])
-#     print("-"*20)
 
-#  Define paths to the reads
-# read_fw  = lambda wildcards: sample_id_path[wildcards.key][wildcards.id][0]
-# read_rv = lambda wildcards: sample_id_path[wildcards.key][wildcards.id][1]
-#  And to the reads after qc
-# read_fw_after_fastp = "data/sample_{key}/reads_fastp/{id}_1.qc.fastq.gz" 
-# read_rv_after_fastp =  "data/sample_{key}/reads_fastp/{id}_2.qc.fastq.gz"
 read_fw_after_fastp = lambda wildcards: sample_id_path[wildcards.key][wildcards.id][0]
 read_rv_after_fastp =  lambda wildcards: sample_id_path[wildcards.key][wildcards.id][1]
 
@@ -157,14 +96,7 @@ rule all:
     input:
         expand(os.path.join(OUTDIR, "{key}", 'log/run_vamb_asymmetric.finished'), key=sample_id.keys()),
         expand(os.path.join(OUTDIR,"{key}",'vamb_asymmetric','vae_clusters_graph_thr_0.75_candidate_plasmids.tsv'),key=sample_id.keys()),
-        # expand(os.path.join(OUTDIR,"{key}",'vamb_asymmetric','vae_clusters_graph_thr_0.75_candidate_plasmids.tsv'),key=sample_id.keys()),
         expand(os.path.join(OUTDIR,"{key}",'log/run_geNomad.finished'), key=sample_id.keys()),
-        # "tst"
-        # expand("data/sample_{key}/vamb_default", key=sample_id.keys()),
-        # expand("data/sample_{key}/vamb_default", key=sample_id.keys()),
-        # expand_dir("data/sample_[key]/scapp_[value]/delete_me", sample_id)
-        #expand_dir("data/sample_[key]/mp_spades_[value]/contigs.fasta", sample_id),
-
 
 rulename = "download_genomad_db"
 rule download_genomad_db:
@@ -179,27 +111,6 @@ rule download_genomad_db:
         mkdir -p {output.dir_geNomad_db}
         genomad download-database {output.dir_geNomad_db}
         """
-# rulename = "fastp"
-# rule fastp:
-#    input: 
-#       fw = read_fw, 
-#       rv = read_rv, 
-#    output:
-#       html = "data/sample_{key}/reads_fastp/{id}/report.html", # TODO insert stuff
-#       json = "data/sample_{key}/reads_fastp/{id}/report.json",
-#       fw = read_fw_after_fastp, 
-#       rv = read_rv_after_fastp, 
-#    threads: threads_fn(rulename)
-#    resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-#    benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
-#    log: config.get("log", "log/") + "{key}_{id}_" + rulename
-#    shell:
-#            'bin/fastp -i {input.fw:q} -I {input.rv:q} '
-#            '-o {output.fw:q} -O {output.rv:q} --html {output.html:q} --json {output.json:q} '
-#            '--trim_poly_g --poly_g_min_len 7 --cut_tail --cut_front '
-#            '--cut_window_size 6  '
-#            '--thread {threads} 2> {log:q}'
-
 
 rulename = "spades"
 rule spades:
@@ -222,8 +133,6 @@ rule spades:
        "-t {threads} -m 180 "
        "-o {output.outdir} -1 {input.fw} -2 {input.rv} " 
        "-t {threads} --memory {resources.mem_gb} > {log} " 
-
-
 
 rulename = "rename_contigs"
 rule rename_contigs:
@@ -266,7 +175,6 @@ rule get_contig_names:
     log: config.get("log", "log/") + "{key}_" + rulename
     shell:
         "zcat {input} | grep '>' | sed 's/>//' > {output} 2> {log} "
-
 
 rulename = "Strobealign_bam_default"
 rule Strobealign_bam_default:
@@ -315,10 +223,8 @@ rule sort:
 #   6. Run vamb to merge the hoods
 #   7. Classify bins/clusters into plasmid/organism/virus bins/clusters
 
-
 ## TODO MISING
 MAX_INSERT_SIZE_CIRC = 50 # 50 is deafult
-
 
 # 0.Look for contigs circularizable EVERYTHING NEW
 rulename = "circularize"
@@ -546,7 +452,6 @@ rule run_vamb_asymmetric:
 rulename = "run_geNomad"
 rule run_geNomad:
     input:
-        #CONTIGS_FILE
         OUTDIR / "data/sample_{key}/contigs.flt.fna.gz",
     output:
         directory(os.path.join(OUTDIR,"{key}",'tmp','geNomad')),
@@ -558,7 +463,6 @@ rule run_geNomad:
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
     log: config.get("log", "log/") + "{key}_" + rulename
-    # conda: "envs/pipeline_conda.yaml"
     conda: THIS_FILE_DIR / "envs/genomad.yaml"
     shell:
         """
@@ -604,7 +508,6 @@ rule classify_bins_with_geNomad:
         composition = os.path.join(OUTDIR,'{key}','vamb_asymmetric','composition.npz'),
     output:
         os.path.join(OUTDIR,"{key}",'vamb_asymmetric','vae_clusters_graph_thr_0.75_candidate_plasmids.tsv'),
-        # os.path.join(OUTDIR,"{key}",'vamb_asymmetric','vae_clusters_unsplit_geNomadplasclustercontigs_extracted_thr_0.75_thrcirc_0.5.tsv'),
         os.path.join(OUTDIR,"{key}",'log','classify_bins_with_geNomad.finished')
     params:
         path = os.path.join(PAU_SRC_DIR, 'classify_bins_with_geNomad_strict_circular.py'),
@@ -612,7 +515,6 @@ rule classify_bins_with_geNomad:
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
     log: config.get("log", "log/") + "{key}_" + rulename
-    # conda: "envs/genomad.yaml"
     conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell:
         """
@@ -623,126 +525,3 @@ rule classify_bins_with_geNomad:
         touch {output[1]}
         """
 
-# rulename = "split_bins"
-# rule checkm2:
-#         input:
-#             contigs = "data/sample_{key}/contigs.flt.fna.gz",
-#             plasmid_clusters = os.path.join(OUTDIR,"{key}",'vamb_asymmetric','vae_clusters_graph_thr_0.75_candidate_plasmids.tsv'),
-#
-#         output:
-#             "tst"
-#         threads: threads_fn(rulename)
-#         resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-#         benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
-#         log: config.get("log", "log/") + "{key}_" + rulename
-#         conda: "envs/checkm2.yml"
-#         shell:
-#             """
-#
-#             python split_fasta.py --fasta_all_contigs {input.contigs} \
-#             --clusterfile_plasmid README.md --clusterfile_chromosome README.md
-#
-#             """
-    # clusterfile_plasmid = "/home/bxc755/rasmussen/scratch/ptracker/plasmid_graph/data/vae_clusters_within_radius_with_looners_complete_unsplit_candidate_plasmids.tsv" 
-    # clusterfile_chromosome = "/home/bxc755/rasmussen/scratch/ptracker/plasmid_graph/data/vae_clusters_within_radius_with_looners_complete_unsplit_candidate_plasmids.tsv" 
-
-# /050   abundance.npz
-# /059   composition.npz
-# /066   contignames
-# /053   latent.npz
-# /064   lengths.npz
-# /057 󰦪  log.txt
-# /055 󰌝  model.pt
-# /054   vae_clusters_community_based_complete_and_circular_unsplit.tsv
-# /056   vae_clusters_community_based_complete_split.tsv
-# /052   vae_clusters_community_based_complete_unsplit.tsv
-# /060   vae_clusters_density_metadata.tsv
-# /067   vae_clusters_density_split.tsv
-# /063   vae_clusters_density_unsplit.tsv
-# /062   vae_clusters_density_unsplit_geNomadplasclustercontigs_extracted_thr_0.5_thrcirc_0.5.tsv
-# /058   vae_clusters_graph_thr_0.75_candidate_plasmids.tsv
-# /065   vae_clusters_unsplit.tsv
-
-# rulename = "checkm2"
-# rule checkm2:
-#         output:
-#             "tst"
-#         threads: threads_fn(rulename)
-#         resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-#         benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
-#         log: config.get("log", "log/") + "{key}_" + rulename
-#         conda: "envs/checkm2.yml"
-#         shell:
-#             """
-#             echo hello
-#             """
-
-## EXTRA FOR TESTING 
-
-# rulename = "VAMB_DEFAULT"
-# rule VAMB_DEFAULT:
-#     input: 
-#         contig = "data/sample_{key}/contigs.flt.fna.gz",
-#         bamfiles = lambda wildcards: expand("data/sample_{key}/mapped_sorted/{id}.bam.sort", key=wildcards.key, id=sample_id[wildcards.key]),
-#     output:
-#         dir = directory("data/sample_{key}/vamb_default"),
-#     threads: threads_fn(rulename)
-#     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-#     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
-#     log: config.get("log", "log/") + "{key}_" + rulename
-#     shell:
-#         """
-#         rm -rf {output.dir} 
-#         vamb bin default --outdir {output.dir} --fasta {input.contig} \
-#         -p {threads} --bamfiles {input.bamfiles} -m 2000 
-#         """
-
-
-# rulename = "SCAPP"
-# rule SCAPP:
-#     input: 
-#         graph = "data/sample_{key}/spades_{id}/assembly_graph.fastg",
-#         fw = read_fw_after_fastp, 
-#         rv = read_rv_after_fastp, 
-#         # graph_align = "data/sample_{key}/old_scapp/scapp_{id}/assembly_graph.confident_cycs.fasta/intermediate_files/reads_pe_primary.sort.bam", 
-#     output:
-#         # scapp makes a directory first and the changes it to a file which is the output. This confuses
-#         # snakemakes due it either looking for a directory or a file and then stopping the job
-#         # Therefore need to look for a temp, file which is made when the job is done..
-#         fake_output = "data/sample_{key}/scapp_{id}/delete_me"
-#     params:
-#         true_output = "data/sample_{key}/scapp_{id}/assembly_graph.confident_cycs.fasta", 
-#     threads: threads_fn(rulename)
-#     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-#     benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
-#     log: config.get("log", "log/") + "{key}_{id}_" + rulename
-#     conda: "envs/install_scapp.yaml"
-#     shell:
-#         """
-#         scapp -g {input.graph} -o {params.true_output} -r1 {input.fw} -r2 {input.rv} -p {threads}
-#         touch {output.fake_output}
-#         """
-# # Expected output file
-# # fd assembly_graph.confident_cycs.fasta -t f
-# # scapp_13/assembly_graph.confident_cycs.fasta/assembly_graph.confident_cycs.fasta
-
-
-# rulename = "mpSpades"
-# rule mpSpades:
-#         input: 
-#             fw = read_fw_after_fastp, 
-#             rv = read_rv_after_fastp, 
-#         output:
-#             outdir = directory("data/sample_{key}/mp_spades_{id}"),
-#             outfile = "data/sample_{key}/mp_spades_{id}/contigs.fasta",
-#         threads: threads_fn(rulename)
-#         resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
-#         benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
-#         log: config.get("log", "log/") + "{key}_{id}_" + rulename
-#         shell:
-#             """
-#             rm -rf {output.outdir}
-#             /maps/projects/rasmussen/scratch/ptracker/run_mp_spades/bin/SPades-4/SPAdes-4.0.0-Linux/bin/metaplasmidspades.py --phred-offset 33 -o {output.outdir} -1 {input.fw} -2 {input.rv} \
-#             > {log}
-#             ## bin/SPAdes-3.15.4-Linux/bin/metaplasmidspades.py --phred-offset 33 -o {output.outdir} -1 {input.fw} -2 {input.rv} \
-#             """

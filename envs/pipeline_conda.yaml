@@ -19,7 +19,7 @@ dependencies:
 
   - pip
   - pip:
-      - -e ../..
+      - -e ../../..
       # - fastnode2vec
 
   # - pip:

@@ -46,7 +46,6 @@ import sys
 from pathlib import Path
 from typing import List
 
-from pandas.core.generic import config
 from return_all import *
 
 # Make both -h and --help available instead of just --help
@@ -99,7 +98,7 @@ class Snakemake_runner(Cli_runner):
     dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
     output_directory = os.getcwd()
 
-    def __init__(self, logger: Logger, snakefile: str = "snakefile.py"):
+    def __init__(self, logger: Logger, snakefile: str = "snakefile.smk"):
         self.add_command_to_run(self.snakemake_path)
         self.snakefile_path = Path(Path(self.dir_of_current_file) / snakefile)
         self.add_arguments(["--snakefile", self.snakefile_path])

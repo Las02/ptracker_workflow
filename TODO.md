@@ -23,7 +23,11 @@
 
 - lock versions
 
-- when all is done test that everything works
 
 ## Last checks
 - Update README with preprint and cli.py paths to README
+- when all is done test that everything works
+  * Running from Assembly with CLI
+  * Running with Assembly with CLI
+  * Running without Assembly 
+- grep for TODO not yet finished
