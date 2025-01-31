@@ -47,7 +47,6 @@ from pathlib import Path
 from typing import List
 
 from pandas.core.generic import config
-
 from return_all import *
 
 # Make both -h and --help available instead of just --help

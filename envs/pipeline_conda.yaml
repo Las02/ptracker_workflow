@@ -7,20 +7,20 @@ channels:
   - defaults
 
 dependencies:
-  - python==3.9.0
-  - minimap2
-  - samtools
-  - spades
-  - blast
-  - snakemake
-  - networkx
-  - pytorch
-  - pysam
+  - python==3.12
+  # - minimap2
+  # - samtools
+  # - spades
+  # - blast
+  # - snakemake
+  # - networkx
+  # - pytorch
+  # - pysam
 
   - pip
   - pip:
-      - -e /home/projects/ku_00197/people/lasdan/benchmark_scapp_mpspades_vamb_one_sample/ptracker_workflow/bin/plamb
-      - fastnode2vec
+      - -e ../..
+      # - fastnode2vec
 
   # - pip:
   #   - numpy==1.24.2
