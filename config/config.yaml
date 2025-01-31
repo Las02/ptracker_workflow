@@ -22,8 +22,6 @@ default_walltime: "48:00:00"
 default_threads: 16
 default_mem_gb: 50
 
-
-
 rename_contigs:
   walltime: "15-00:00:00"
   threads: 1
@@ -57,26 +55,10 @@ create_assembly_alignment_graph:
   threads: 1
   default_mem_gb: 50
 
-# Setting
-mpSpades:
-  walltime: "15-00:00:00"
-  threads: 60
-  mem_gb: 950
-
-fastp:
-  walltime: "10-00:00:00"
-  threads: 8
-  mem_gb: 120
-
 spades:
   walltime: "15-00:00:00"
   threads: 16
   mem_gb: 245
-
-SCAPP:
-  walltime: "45-00:00:00"
-  threads: 4
-  mem_gb: 150
 
 extract_neighs_from_n2v_embeddings:
   walltime: "1-00:00:00"
@@ -109,7 +91,6 @@ run_geNomad:
   walltime: "05-00:00:00"
   threads: 16
   mem_gb: 245
-
 
 run_vamb_asymmetric:
   walltime: "05-00:00:00"
