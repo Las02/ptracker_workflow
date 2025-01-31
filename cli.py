@@ -38,7 +38,6 @@ except ModuleNotFoundError as e:
 either of modules eg. using conda or pip. See the user guide on the github README.\n""")
         raise e
 
-
 import os
 import shutil
 import subprocess
@@ -46,7 +45,8 @@ import sys
 from pathlib import Path
 from typing import List
 
-from return_all import *
+from click_file_types import WssFile
+from command_line_runners import CliRunner, SnakemakeRunner
 
 # Make both -h and --help available instead of just --help
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -58,95 +58,6 @@ class Logger:
 
     def warn(self, arg):
         click.echo(click.style("WARNING:   " + arg, fg="red", underline=True))
-
-
-class Cli_runner:
-    argument_holder = []
-    _command_has_been_added = False
-
-    def add_command_to_run(self, command_to_run):
-        if self._command_has_been_added:
-            raise Exception(
-                f"A command has allready been added: {self.argument_holder[0]}"
-            )
-        self.argument_holder = [command_to_run] + self.argument_holder
-        self._command_has_been_added = True
-
-    def add_arguments(self, arguments: List):
-        self.argument_holder += arguments
-
-    def prettyprint_args(self):
-        [print(x, end=" ") for x in self.argument_holder]
-        print()
-
-    def run(self, dry_run_command=False):
-        if dry_run_command:
-            print("running:", self.argument_holder)
-        else:
-            print("Running:")
-            self.prettyprint_args()
-            subprocess.run(self.argument_holder)
-            print("Ran:")
-            self.prettyprint_args()
-
-
-class Snakemake_runner(Cli_runner):
-    argument_holder = []
-    to_print_while_running_snakemake = None
-    config_options = []
-    snakemake_path = shutil.which("snakemake")
-    dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
-    output_directory = os.getcwd()
-
-    def __init__(self, logger: Logger, snakefile: str = "snakefile.smk"):
-        self.add_command_to_run(self.snakemake_path)
-        self.snakefile_path = Path(Path(self.dir_of_current_file) / snakefile)
-        self.add_arguments(["--snakefile", self.snakefile_path])
-        self.add_arguments(["--rerun-triggers", "mtime"])
-        self.add_arguments(["--nolock"])
-        self.logger = logger
-        self.validate_paths()
-        # default to run snakemake in current directory
-        # Config needs to be added in a special way
-
-    def validate_paths(self):
-        if not self.snakefile_path.exists():
-            raise click.UsageError(
-                f"Could not find snakefile, tried: {self.snakefile_path}"
-            )
-
-        if self.snakemake_path is None:
-            raise click.UsageError(
-                """Could not find snakemake, is it installed?
-See following installation guide: https://snakemake.readthedocs.io/en/stable/getting_started/installation.html"""
-            )
-
-        if shutil.which("mamba") is None:
-            self.logger.warn(
-                "Could not find mamba installation, is the correct environment activated?"
-            )
-            self.logger.warn(
-                "Defaulting to use conda to build environments for snakemake, this will be slower"
-            )
-            self.add_arguments(["--conda-frontend", "conda"])
-
-    def add_to_config(self, to_add):
-        self.config_options += [to_add]
-
-    def run(self):
-        # use conda: always
-        self.add_arguments(["--use-conda"])
-        self.add_arguments(["--rerun-incomplete"])
-
-        self.add_to_config(f"output_directory={self.output_directory}")
-        self.add_to_config(f"dir_of_current_file={self.dir_of_current_file}")
-        # Add config options
-        self.add_arguments((["--config"] + self.config_options))
-        # Log
-        if self.to_print_while_running_snakemake is not None:
-            self.logger.print(self.to_print_while_running_snakemake)
-        # Run
-        super().run()
 
 
 class environment_setupper:
@@ -167,7 +78,7 @@ class environment_setupper:
         self.genomad_db_exist = (self.genomad_dir).exists()
 
     def clone_directory(self, cli):
-        git_cli_runner = Cli_runner()
+        git_cli_runner = CliRunner()
         git_cli_runner.add_command_to_run(self.git_path)
         git_cli_runner.add_arguments(cli)
         git_cli_runner.run()
@@ -176,7 +87,7 @@ class environment_setupper:
         self.logger.print(
             f"Installing Genomad database (~3.1 GB) to {self.genomad_dir}"
         )
-        snakemake_runner = Snakemake_runner(self.logger)
+        snakemake_runner = SnakemakeRunner(self.logger)
         # Download the directory in the location of the current file
         snakemake_runner.add_arguments(["--directory", self.dir_of_current_file])
         # Use conda as the genomad and therefore the genomad environment needs to be used
@@ -188,7 +99,7 @@ class environment_setupper:
 
     def install_conda_environments(self):
         self.logger.print(f"Installing conda environments")
-        snakemake_runner = Snakemake_runner(self.logger)
+        snakemake_runner = SnakemakeRunner(self.logger)
         snakemake_runner.add_arguments(["--use-conda", "--conda-create-envs-only"])
         snakemake_runner.run()
 
@@ -246,18 +157,7 @@ class environment_setupper:
         return True
 
 
-class List_of_files(click.ParamType):
-    name = "List of paths"
-
-    def convert(self, value, param, ctx):
-        for file in value:
-            if not Path(file).exists():
-                self.fail(f"{file!r} is not a valid path", param, ctx)
-        return list(value)
-
-
 @click.command()
-# @click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
 @click.option(
     "-r",
     "--reads",
@@ -272,7 +172,7 @@ path/to/sample_2/read1    path/to/sample_2/read2
 Passing in this file means that the pipeline will be run from the start, meaning it will also assemble the reads.
 
 """,
-    type=wss_file(
+    type=WssFile(
         Logger(),
         expected_headers=["read1", "read2"],
         none_file_columns=[],
@@ -291,7 +191,7 @@ path/sample_2/read1    path/sample_2/read2    path/sample_2/Spades_dir
 ```
 Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
         """,
-    type=wss_file(
+    type=WssFile(
         Logger(),
         expected_headers=[
             "read1",
@@ -327,8 +227,6 @@ Passing in this file means that the pipeline will not assemble the reads but run
     help="Run a dryrun for the specified files. Showing the parts of the pipeline which will be run ",
     is_flag=True,
 )
-# @click.option("--r1", cls=OptionEatAll, type=List_of_files())
-# @click.option("--r2", cls=OptionEatAll, type=List_of_files())
 def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
@@ -363,7 +261,7 @@ def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output):
     if not environment_setupper(logger).check_if_everything_is_setup():
         environment_setupper(logger).setup()
 
-    snakemake_runner = Snakemake_runner(logger)
+    snakemake_runner = SnakemakeRunner(logger)
     snakemake_runner.add_arguments(["-c", str(threads)])
 
     # Set output directory
@@ -388,16 +286,8 @@ def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output):
 
 
 if __name__ == "__main__":
-    # Print --help if no arguments are passed in
+    # Print --help if no arguments are passed
     if len(sys.argv) == 1:
         main(["--help"])
     else:
         main()
-
-    #    status = snakemake.snakemake(snakefile, configfile=paramsfile,
-    #                              targets=[target], printshellcmds=True,
-    #                              dryrun=args.dry_run, config=config)
-    #
-    # if status: # translate "success" into shell exit code of 0
-    #    return 0
-    # return 1
