@@ -2,16 +2,16 @@
 <information about the tool>
 
 ## Quick Start :rocket:
+Create conda environment:
 ```
-# Create conda environment:
 conda create -n ptracker_pipeline -c conda-forge -c bioconda 'snakemake==8.26.0' 'mamba==1.5.9'
 conda activate ptracker_pipeline
-
-# Clone the repository and install the package
+```
+Clone the repository and install the package
+```
 git clone <repository>
 cd <repository>
 pip install .
-
 ```
  To run the entire pipeline including assembly pass in a whitespace separated file containing the reads:
 ```
