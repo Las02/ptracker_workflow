@@ -6,6 +6,10 @@ from loguru import logger
 
 
 class CliRunner:
+    """
+    Class for building and executing command-line commands.
+    """
+
     _argument_holder = []
     _command_has_been_added = False
 
@@ -36,22 +40,24 @@ class CliRunner:
 
 
 class SnakemakeRunner(CliRunner):
-    _argument_holder = []
+    """
+    Class to run snakemake workflows from python.
+    """
+
     to_print_while_running_snakemake = None
-    config_options = []
-    snakemake_path = shutil.which("snakemake")
-    dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
     output_directory = os.getcwd()
+    _argument_holder = []
+    _config_options = []
+    _snakemake_path = shutil.which("snakemake")
+    _dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
 
     def __init__(self, snakefile: str = "snakefile.smk"):
-        self.add_command_to_run(self.snakemake_path)
-        self.snakefile_path = Path(Path(self.dir_of_current_file) / snakefile)
+        self.add_command_to_run(self._snakemake_path)
+        self.snakefile_path = Path(Path(self._dir_of_current_file) / snakefile)
         self.add_arguments(["--snakefile", self.snakefile_path])
         self.add_arguments(["--rerun-triggers", "mtime"])
         self.add_arguments(["--nolock"])
         self.validate_paths()
-        # default to run snakemake in current directory
-        # Config needs to be added in a special way
 
     def validate_paths(self):
         if not self.snakefile_path.exists():
@@ -59,7 +65,7 @@ class SnakemakeRunner(CliRunner):
                 f"Could not find snakefile, tried: {self.snakefile_path}"
             )
 
-        if self.snakemake_path is None:
+        if self._snakemake_path is None:
             raise click.UsageError(
                 """Could not find snakemake, is it installed?
 See following installation guide: https://snakemake.readthedocs.io/en/stable/getting_started/installation.html"""
@@ -75,19 +81,22 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
             self.add_arguments(["--conda-frontend", "conda"])
 
     def add_to_config(self, to_add):
-        self.config_options += [to_add]
+        self._config_options += [to_add]
 
     def run(self):
         # use conda: always
         self.add_arguments(["--use-conda"])
+        # Always rerun incomplete
         self.add_arguments(["--rerun-incomplete"])
 
         self.add_to_config(f"output_directory={self.output_directory}")
-        self.add_to_config(f"dir_of_current_file={self.dir_of_current_file}")
-        # Add config options
-        self.add_arguments((["--config"] + self.config_options))
-        # Log
+        self.add_to_config(f"dir_of_current_file={self._dir_of_current_file}")
+        # Add config options -- these needs to be passed together to snakemake
+        # eg. --config <arg1> <arg2> Therefore we collect them in the self._config_options variable and
+        # append them at the end
+        self.add_arguments((["--config"] + self._config_options))
+        # Possibility of adding info to snakemake for when it runs
         if self.to_print_while_running_snakemake is not None:
             logger.info(self.to_print_while_running_snakemake)
-        # Run
+        # Run snakemake
         super().run()

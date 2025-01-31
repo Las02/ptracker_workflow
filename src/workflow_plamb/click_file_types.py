@@ -5,6 +5,10 @@ from loguru import logger
 
 
 class WssFile(click.ParamType):
+    """
+    click Type for validating whitespace separated files.
+    """
+
     name = "White Space Separated File"
 
     def __init__(

@@ -9,9 +9,6 @@ from workflow_plamb.command_line_runners import SnakemakeRunner
 from workflow_plamb.environment import EnvironmentManager
 from workflow_plamb.richclick_options import *
 
-# Make both -h and --help available instead of just --help
-CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
-
 
 @click.command()
 @click.option(

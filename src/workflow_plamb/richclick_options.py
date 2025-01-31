@@ -27,3 +27,6 @@ click.rich_click.OPTION_GROUPS = {
 }
 
 click.rich_click.USE_RICH_MARKUP = True
+
+# Make both -h and --help available instead of just --help
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
