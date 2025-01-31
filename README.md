@@ -10,7 +10,7 @@ conda activate workflow_plamb
 Clone the repository and install the package
 ```
 git clone <repository>
-cd <repository>
+cd <repository>/workflow_plamb
 pip install .
 ```
  To run the entire pipeline including assembly pass in a whitespace separated file containing the reads:
