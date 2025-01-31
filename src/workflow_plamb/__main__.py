@@ -5,7 +5,7 @@ import sys
 import rich_click as click
 
 from workflow_plamb.click_file_types import WssFile
-from workflow_plamb.command_line_runners import SnakemakeRunner
+from workflow_plamb.command_line_runners import CliRunner, SnakemakeRunner
 from workflow_plamb.environment import EnvironmentManager
 from workflow_plamb.richclick_options import *
 
@@ -75,10 +75,16 @@ Passing in this file means that the pipeline will not assemble the reads but run
 @click.option(
     "-n",
     "--dryrun",
-    help="Run a dryrun for the specified files. Showing the parts of the pipeline which will be run ",
+    help="Run a snakemake dryrun for the specified files. Showing the parts of the pipeline which will be run ",
     is_flag=True,
 )
-def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output):
+@click.option(
+    "-nn",
+    "--cli_dryrun",
+    help="Run a dryrun for the cli interface. Showing the commands which would be run fron the cli interface",
+    is_flag=True,
+)
+def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output, cli_dryrun):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
     The first time running the program it will try to install the genomad database (~3.1 G) and required scripts.
@@ -87,7 +93,11 @@ def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output):
     For Quick Start please see the README: https://github.com/Las02/ptracker_workflow/tree/try_cli
     """
 
-    environment_manager: EnvironmentManager = EnvironmentManager()
+    if cli_dryrun:
+        # Default is False
+        CliRunner.dry_run_command = True
+
+    environment_manager = EnvironmentManager()
     # Set up the environment
     if setup_env:
         environment_manager.setup_environment()

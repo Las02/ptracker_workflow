@@ -1,7 +1,10 @@
 import os
 import shutil
+import subprocess
+from pathlib import Path
 from typing import List
 
+import rich_click as click
 from loguru import logger
 
 
@@ -10,8 +13,11 @@ class CliRunner:
     Class for building and executing command-line commands.
     """
 
-    _argument_holder = []
-    _command_has_been_added = False
+    dry_run_command = False
+
+    def __init__(self) -> None:
+        self._argument_holder = []
+        self._command_has_been_added = False
 
     def add_command_to_run(self, command_to_run):
         if self._command_has_been_added:
@@ -28,9 +34,10 @@ class CliRunner:
         [print(x, end=" ") for x in self._argument_holder]
         print()
 
-    def run(self, dry_run_command=False):
-        if dry_run_command:
-            logger.info("running:", self._argument_holder)
+    def run(self):
+        if self.dry_run_command:
+            logger.info("running:")
+            logger.info(self._argument_holder)
         else:
             print("Running:")
             self.prettyprint_args()
@@ -44,16 +51,16 @@ class SnakemakeRunner(CliRunner):
     Class to run snakemake workflows from python.
     """
 
-    to_print_while_running_snakemake = None
     output_directory = os.getcwd()
-    _argument_holder = []
-    _config_options = []
     _snakemake_path = shutil.which("snakemake")
-    _dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
+    _src_dir = Path(os.path.dirname(os.path.realpath(__file__))).parent.parent
 
     def __init__(self, snakefile: str = "snakefile.smk"):
+        super().__init__()
+        self._config_options = []
+        self.to_print_while_running_snakemake = None
         self.add_command_to_run(self._snakemake_path)
-        self.snakefile_path = Path(Path(self._dir_of_current_file) / snakefile)
+        self.snakefile_path = Path(Path(self._src_dir) / snakefile)
         self.add_arguments(["--snakefile", self.snakefile_path])
         self.add_arguments(["--rerun-triggers", "mtime"])
         self.add_arguments(["--nolock"])
@@ -90,7 +97,7 @@ See following installation guide: https://snakemake.readthedocs.io/en/stable/get
         self.add_arguments(["--rerun-incomplete"])
 
         self.add_to_config(f"output_directory={self.output_directory}")
-        self.add_to_config(f"dir_of_current_file={self._dir_of_current_file}")
+        self.add_to_config(f"src_dir={self._src_dir}")
         # Add config options -- these needs to be passed together to snakemake
         # eg. --config <arg1> <arg2> Therefore we collect them in the self._config_options variable and
         # append them at the end

@@ -8,15 +8,15 @@ from workflow_plamb.command_line_runners import CliRunner, SnakemakeRunner
 
 
 class EnvironmentManager:
-    _dir_of_current_file = Path(os.path.dirname(os.path.realpath(__file__)))
-    _genomad_dir = _dir_of_current_file / "genomad_db"
+    _src_dir = Path(Path(os.path.dirname(os.path.realpath(__file__)))).parent.parent
+    _genomad_dir = _src_dir / "genomad_db"
     _genomad_db_exist = (_genomad_dir).exists()
 
     def install_genomad_db(self):
         logger.info(f"Installing Genomad database (~3.1 GB) to {self._genomad_dir}")
         snakemake_runner = SnakemakeRunner()
         # Download the directory in the location of the current file
-        snakemake_runner.add_arguments(["--directory", self._dir_of_current_file])
+        snakemake_runner.add_arguments(["--directory", self._src_dir])
         # We need to download the genomad tools first so conda needs to be passed to snakemake
         snakemake_runner.add_arguments(["--use-conda"])
         snakemake_runner.add_arguments(["-c", "1"])
@@ -30,7 +30,7 @@ class EnvironmentManager:
         snakemake_runner.add_arguments(["--use-conda", "--conda-create-envs-only"])
         snakemake_runner.run()
 
-    def setup(self):
+    def setup_environment(self):
         logger.info("Setting up environment")
         if not self._genomad_db_exist:
             self.install_genomad_db()
