@@ -19,6 +19,6 @@
 
 - should  mamba install zstd be part of the module.. 
 
-
+- lock versions
 
 
