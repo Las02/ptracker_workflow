@@ -19,7 +19,7 @@ dependencies:
 
   - pip
   - pip:
-      - -e /home/bxc755/rasmussen/scratch/ptracker/ptracker/bin/vamb
+      - -e /home/projects/ku_00197/people/lasdan/benchmark_scapp_mpspades_vamb_one_sample/ptracker_workflow/bin/plamb
       - fastnode2vec
 
   # - pip:

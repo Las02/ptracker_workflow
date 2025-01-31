@@ -19,8 +19,43 @@ n2v_p: "0.1"
 n2v_q: "2.0"
 
 default_walltime: "48:00:00"
-default_threads: 1
+default_threads: 16
 default_mem_gb: 50
+
+
+
+rename_contigs:
+  walltime: "15-00:00:00"
+  threads: 1
+  default_mem_gb: 5
+cat_contigs:
+  walltime: "15-00:00:00"
+  threads: 1
+  default_mem_gb: 5
+get_contig_names:
+  walltime: "15-00:00:00"
+  threads: 1
+  default_mem_gb: 5
+samtools_sort:
+  walltime: "15-00:00:00"
+  threads: 4
+  default_mem_gb: 20
+circularize:
+  walltime: "15-00:00:00"
+  threads: 1
+  default_mem_gb: 5
+weighted_assembly_graphs:
+  walltime: "15-00:00:00"
+  threads: 1
+  default_mem_gb: 5
+weighted_alignment_graph:
+  walltime: "15-00:00:00"
+  threads: 1
+  default_mem_gb: 5
+create_assembly_alignment_graph:
+  walltime: "15-00:00:00"
+  threads: 1
+  default_mem_gb: 50
 
 # Setting
 mpSpades:
@@ -75,10 +110,6 @@ run_geNomad:
   threads: 16
   mem_gb: 245
 
-create_assembly_alignment_graph:
-  walltime: "05-00:00:00"
-  threads: 5
-  mem_gb: 500
 
 run_vamb_asymmetric:
   walltime: "05-00:00:00"

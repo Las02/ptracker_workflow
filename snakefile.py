@@ -25,7 +25,7 @@ output_directory = Path("") if output_directory is None else Path(output_directo
 
 # Paths
 OUTDIR= output_directory / "outdir_plamb" #config["outdir"] #get_config('outdir', 'outdir_plamb', r'.*') # TODO fix
-PAU_SRC_DIR = THIS_FILE_DIR / "bin/ptracker/src/workflow"  
+PAU_SRC_DIR = THIS_FILE_DIR / "bin/plamb_ptracker_dir/src/workflow/src"  
 
 # Define deault threads/walltime/mem_gb
 default_walltime = config.get("default_walltime")
@@ -104,8 +104,8 @@ if config.get("read_assembly_dir") != None:
 
     # Redefin definede paths to files
     contigs =  lambda wildcards: Path(sample_id_path_assembly[wildcards.key][wildcards.id][0]) / "contigs.fasta"
-    contigs_paths =  lambda wildcards: Path(sample_id_path_assembly[wildcards.key][wildcards.id][0]) / "assembly_graph_after_simplification.gfa"
-    assembly_graph =  lambda wildcards: Path(sample_id_path_assembly[wildcards.key][wildcards.id][0]) / "contigs.paths"
+    assembly_graph  =  lambda wildcards: Path(sample_id_path_assembly[wildcards.key][wildcards.id][0]) / "assembly_graph_after_simplification.gfa"
+    contigs_paths  =  lambda wildcards: Path(sample_id_path_assembly[wildcards.key][wildcards.id][0]) / "contigs.paths"
 
 # # Print out run information
 # print("Running for the following:")
@@ -218,8 +218,8 @@ rule spades:
     conda: THIS_FILE_DIR / "envs/spades_env.yaml"
     shell:
        # "bin/SPAdes-3.15.4-Linux/bin/metaspades.py "
-       "spades --meta "
-       "-t 20 -m 180 "
+       "spades.py --meta "
+       "-t {threads} -m 180 "
        "-o {output.outdir} -1 {input.fw} -2 {input.rv} " 
        "-t {threads} --memory {resources.mem_gb} > {log} " 
 
@@ -246,13 +246,13 @@ rule cat_contigs:
         # expand_dir("data/sample_[key]/spades_[value]/contigs.renamed.fasta", sample_id)
     output: OUTDIR / "data/sample_{key}/contigs.flt.fna.gz"
     threads: threads_fn(rulename)
-    params: script =  PAU_SRC_DIR / "bin/vamb/src/concatenate.py"
+    params: script =  PAU_SRC_DIR / "concatenate.py"
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}" + rulename
     log: config.get("log", "log/") + "{key}_" + rulename
     conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell: 
-        "python {params.script} {output} {input} --keep-names 2> {log} "  # TODO should filter depending on size????
+        "python {params.script} {output} {input} --keepnames 2> {log} "  # TODO should filter depending on size????
 
 rulename = "get_contig_names"
 rule get_contig_names:
@@ -303,7 +303,7 @@ rule sort:
     log: config.get("log", "log/") + "{key}_{id}_" + rulename
     conda: THIS_FILE_DIR / "envs/pipeline_conda.yaml"
     shell:
-        "samtools sort {input} -o {output} "
+        "samtools sort --threads {threads} {input} -o {output} "
 
 ## The next part of the pipeline is composed of the following steps:
 # (Despite the steps are numerated, some of the order might change)
@@ -330,7 +330,7 @@ rule circularize:
         os.path.join(OUTDIR,'{key}','tmp','circularisation','max_insert_len_%i_circular_clusters.tsv.txt'%MAX_INSERT_SIZE_CIRC),
         os.path.join(OUTDIR,'{key}','log/circularisation/circularisation.finished')
     params:
-        path = os.path.join(PAU_SRC_DIR, 'src', 'circularisation.py'),
+        path = os.path.join(PAU_SRC_DIR, 'circularisation.py'),
         dir_bams = OUTDIR / "data/sample_{key}/mapped_sorted",
     threads: threads_fn(rulename),
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
@@ -376,7 +376,7 @@ rule weighted_assembly_graphs:
         os.path.join(OUTDIR,"{key}",'tmp','assembly_graphs','{id}.pkl'),
         os.path.join(OUTDIR,"{key}", 'log','assembly_graph_processing','weighted_assembly_graphs_{id}.finished')
     params:
-        path = os.path.join(PAU_SRC_DIR, 'src', 'process_gfa.py'),
+        path = os.path.join(PAU_SRC_DIR, 'process_gfa.py'),
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_{id}_" + rulename
@@ -414,7 +414,7 @@ rule weighted_alignment_graph:
         os.path.join(OUTDIR,"{key}",'tmp','alignment_graph','alignment_graph.pkl'),
         os.path.join(OUTDIR,"{key}",'log','alignment_graph_processing','weighted_alignment_graph.finished')
     params:
-        path = os.path.join(PAU_SRC_DIR, 'src', 'process_blastout.py'),
+        path = os.path.join(PAU_SRC_DIR, 'process_blastout.py'),
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
@@ -440,7 +440,7 @@ rule create_assembly_alignment_graph:
         os.path.join(OUTDIR,"{key}",'tmp','assembly_alignment_graph.pkl'),
         os.path.join(OUTDIR,"{key}", 'log','create_assembly_alignment_graph.finished')
     params:
-        path = os.path.join(PAU_SRC_DIR, 'src', 'merge_assembly_alignment_graphs.py'),
+        path = os.path.join(PAU_SRC_DIR, 'merge_assembly_alignment_graphs.py'),
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
@@ -465,7 +465,7 @@ rule n2v_assembly_alignment_graph:
         os.path.join(OUTDIR,"{key}",'tmp','n2v','assembly_alignment_graph_embeddings','contigs_embedded.txt'),
         os.path.join(OUTDIR,"{key}",'log','n2v','n2v_assembly_alignment_graph.finished')
     params:
-        path = os.path.join(PAU_SRC_DIR, 'src', 'fastnode2vec_args.py'),
+        path = os.path.join(PAU_SRC_DIR, 'fastnode2vec_args.py'),
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
@@ -494,7 +494,7 @@ rule extract_neighs_from_n2v_embeddings:
         # os.path.join(OUTDIR,"{key}",'tmp','neighs','neighs_object_r_%s.npz'%NEIGHS_R),
         os.path.join(OUTDIR,"{key}",'log','neighs','extract_neighs_from_n2v_embeddings.finished')
     params:
-        path = os.path.join(PAU_SRC_DIR, 'src', 'embeddings_to_neighs.py'),
+        path = os.path.join(PAU_SRC_DIR, 'embeddings_to_neighs.py'),
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
@@ -553,7 +553,7 @@ rule run_geNomad:
         os.path.join(OUTDIR,"{key}",'log/run_geNomad.finished'),
         os.path.join(OUTDIR,"{key}",'tmp','geNomad','contigs.flt_aggregated_classification','contigs.flt_aggregated_classification.tsv')
     params:
-        db_geNomad= THIS_FILE_DIR / "genomad_db",
+        db_geNomad= THIS_FILE_DIR / "genomad_db" / "genomad_db", 
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
@@ -578,7 +578,7 @@ rule merge_circular_with_graph_clusters:
         os.path.join(OUTDIR,'{key}','vamb_asymmetric','vae_clusters_community_based_complete_and_circular_unsplit.tsv'),
         os.path.join(OUTDIR,'{key}','log/merge_circular_with_graph_clusters.finished')
     params:
-        path=os.path.join(PAU_SRC_DIR, 'src', 'merge_circular_plamb_clusters.py'),
+        path=os.path.join(PAU_SRC_DIR, 'merge_circular_plamb_clusters.py'),
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename
@@ -607,7 +607,7 @@ rule classify_bins_with_geNomad:
         # os.path.join(OUTDIR,"{key}",'vamb_asymmetric','vae_clusters_unsplit_geNomadplasclustercontigs_extracted_thr_0.75_thrcirc_0.5.tsv'),
         os.path.join(OUTDIR,"{key}",'log','classify_bins_with_geNomad.finished')
     params:
-        path = os.path.join(PAU_SRC_DIR, 'src', 'classify_bins_with_geNomad_strict_circular.py'),
+        path = os.path.join(PAU_SRC_DIR, 'classify_bins_with_geNomad_strict_circular.py'),
     threads: threads_fn(rulename)
     resources: walltime = walltime_fn(rulename), mem_gb = mem_gb_fn(rulename)
     benchmark: config.get("benchmark", "benchmark/") + "{key}_" + rulename

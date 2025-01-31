@@ -1,6 +1,10 @@
 /snakemake_output/
 /genomad_db/
 /trash
+.cli.py.swp
+bin/plamb/
+bin/plamb_ptracker_dir/
+envs/.pipeline_conda.yaml.swp
 /vamb_asymmetric
 /Airways/
 /outdir_plamb/
