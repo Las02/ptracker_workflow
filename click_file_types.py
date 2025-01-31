@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import rich_click as click
+
 
 class WssFile(click.ParamType):
     name = "White Space Separated File"

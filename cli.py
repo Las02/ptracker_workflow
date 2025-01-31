@@ -1,52 +1,14 @@
 #!/usr/bin/env python3
-# Import rich_click if installed else default to click.
-# If none are installed write errormessage
-try:
-    import rich_click as click
 
-    # Only set rich_click options if rich_click is installed else default to basic click package
-    click.rich_click.OPTION_GROUPS = {
-        "cli.py": [
-            {
-                "name": "Defining input files: One of these options are required",
-                "options": ["--reads", "--reads_and_assembly_dir"],
-            },
-            {
-                "name": "Additional Required Arguments",
-                "options": [
-                    "--output",
-                ],
-                "table_styles": {
-                    "row_styles": ["yellow", "default", "default", "default"],
-                },
-            },
-            {
-                "name": "Other Options",
-                "options": ["--threads", "--dryrun", "--setup_env", "--help"],
-                "table_styles": {
-                    "row_styles": ["yellow", "default", "default", "default"],
-                },
-            },
-        ],
-    }
-    click.rich_click.USE_RICH_MARKUP = True
-except ModuleNotFoundError as e:
-    try:
-        import click
-    except ModuleNotFoundError as e:
-        print("""\nCould not find module click or module rich_click, please make sure to create an environment containing 
-either of modules eg. using conda or pip. See the user guide on the github README.\n""")
-        raise e
-
-import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import List
 
+import rich_click as click
 from click_file_types import WssFile
 from command_line_runners import CliRunner, SnakemakeRunner
+from loguru import logger
+from richclick_options import *
 
 # Make both -h and --help available instead of just --help
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
