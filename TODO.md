@@ -17,6 +17,8 @@
 
 - Snakemake running it from CMD. - clustersubmission like Avamb workflow
 
+- should  mamba install zstd be part of the module.. 
+
 
 
 
