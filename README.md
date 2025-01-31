@@ -4,8 +4,8 @@
 ## Quick Start :rocket:
 Create conda environment:
 ```
-conda create -n ptracker_pipeline -c conda-forge -c bioconda 'snakemake==8.26.0' 'mamba==1.5.9'
-conda activate ptracker_pipeline
+conda create -n workflow_plamb -c conda-forge -c bioconda 'snakemake==8.26.0' 'mamba==1.5.9'
+conda activate workflow_plamb
 ```
 Clone the repository and install the package
 ```
@@ -18,7 +18,6 @@ pip install .
 workflow_plamb --reads <read_file>  --output <output_directory>
 ```
 The <read_file> could look like:
-
 
 ``` 
 read1                          read2

@@ -22,6 +22,9 @@
 - should  mamba install zstd be part of the module.. 
 
 - lock versions
+- why is checkm2 yaml wierd? 
+- 
+- docker ? 
 
 
 ## Last checks
