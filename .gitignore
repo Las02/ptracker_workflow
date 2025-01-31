@@ -23,3 +23,6 @@ core.*
 snakejob*
 /results/
 log
+src/workflow_plamb/__pycache__
+src/workflow_plamb/__pycache__
+src/workflow_plamb.egg-info

@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
 
-import subprocess
 import sys
-from pathlib import Path
 
 import rich_click as click
-from click_file_types import WssFile
-from command_line_runners import CliRunner, SnakemakeRunner
-from environment import EnvironmentManager
-from loguru import logger
-from richclick_options import *
+
+from workflow_plamb.click_file_types import WssFile
+from workflow_plamb.command_line_runners import SnakemakeRunner
+from workflow_plamb.environment import EnvironmentManager
+from workflow_plamb.richclick_options import *
 
 # Make both -h and --help available instead of just --help
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
@@ -92,7 +90,7 @@ def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output):
     For Quick Start please see the README: https://github.com/Las02/ptracker_workflow/tree/try_cli
     """
 
-    environment_manager = EnvironmentManager()
+    environment_manager: EnvironmentManager = EnvironmentManager()
     # Set up the environment
     if setup_env:
         environment_manager.setup_environment()
@@ -142,8 +140,4 @@ def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output):
 
 
 if __name__ == "__main__":
-    # Print --help if no arguments are passed
-    if len(sys.argv) == 1:
-        main(["--help"])
-    else:
-        main()
+    main()

@@ -1,21 +1,21 @@
 # Pipeline for running PLAMB 
-Pipeline for running Plamb: https://github.com/RasmussenLab/vamb/tree/vamb_n2v_asy
-
+<information about the tool>
 
 ## Quick Start :rocket:
 ```
-# Create environment and install dependencies 
-conda create -n ptracker_pipeline -c conda-forge -c bioconda 'snakemake==8.26.0' 'pandas==2.2.3' 'mamba==1.5.9'
+# Create conda environment:
+conda create -n ptracker_pipeline -c conda-forge -c bioconda 'snakemake==8.26.0' 'mamba==1.5.9'
 conda activate ptracker_pipeline
-pip install rich-click
 
-# clone the repository
-git clone https://github.com/Las02/ptracker_workflow -b try_cli
+# Clone the repository and install the package
+git clone <repository>
+cd <repository>
+pip install .
 
 ```
  To run the entire pipeline including assembly pass in a whitespace separated file containing the reads:
 ```
-./ptracker_workflow/cli.py --reads <read_file>  --output <output_directory>
+workflow_plamb --reads <read_file>  --output <output_directory>
 ```
 The <read_file> could look like:
 
@@ -31,7 +31,7 @@ To dry run the pipeline before pass in the --dryrun flag
 
 To run the pipeline from allready assembled reads pass in a whitespace separated file containing the reads and the path to the spades assembly directories for each read pair.
 ```
-./ptracker_workflow/cli.py --reads_and_assembly_dir <reads_and_assembly_dir>  --output <output_directory>
+workflow_plamb --reads_and_assembly_dir <reads_and_assembly_dir>  --output <output_directory>
 ```
 This directory must contain the following 3 files which Spades produces: 
 | Description                         | File Name from Spades                               |
