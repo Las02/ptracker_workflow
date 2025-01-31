@@ -1,15 +1,15 @@
 from pathlib import Path
 
 import rich_click as click
+from loguru import logger
 
 
 class WssFile(click.ParamType):
     name = "White Space Separated File"
 
     def __init__(
-        self, logger, expected_headers, none_file_columns=[], spades_column=None
+        self, expected_headers, none_file_columns=[], spades_column=None
     ) -> None:
-        self.logger = logger
         self.expected_headers = expected_headers
         self.none_file_columns = none_file_columns
         self.spades_column = spades_column
@@ -81,13 +81,13 @@ class WssFile(click.ParamType):
                 for x in df[self.spades_column]
             ]
 
-        self.logger.print(
+        logger.info(
             f"\nRead in the following sample list from '{value}' using flag '--{param.human_readable_name}':"
         )
 
         # TODO Make it such that long files are not formatted wierd
-        self.logger.print(df.to_markdown(index=False))
-        self.logger.print("")
+        logger.info(df.to_markdown(index=False))
+        logger.info("")
         return value
 
     def is_spades_dir_correct(self, x, value, param, ctx):
