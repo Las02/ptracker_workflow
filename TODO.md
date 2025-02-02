@@ -2,7 +2,7 @@
 <!-- - Add error checking for whether a correct spades dir is passed in -->
 <!-- - Deafult to conda if mamba is not installed -->
 
-- Clean up the snakemake pipeline
+- Clean up the snakemake pipeline |> !IMPORTATNT! take the one from computerome
 - Fix env setup - such that it works within vamb.. how should it be setup 
 
 - Make sure log files and benchmark files are create correctly, prefearbly with class/fn -> also format them and outputfiles nicely
