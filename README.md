@@ -57,7 +57,7 @@ Here the resources for each rule can be configurated as follows
 spades:
   walltime: "15-00:00:00"
   threads: 16
-  mem_gb: 245
+  mem_gb: 60
 ```
 if no resourcess are configurated for a rule the defaults will be used which are also defined in: ``` config/config.yaml ```  as
 ```
@@ -107,21 +107,6 @@ and running the pipeline with 4 threads
 ```
 	snakemake -p -c4 --snakefile snakefile.smk --use-conda
 ```
-
-
-## File Structure
-```
-- snakefile.smk: The snakemake pipeline
-- utils.py: utils used by the pipeline
-- config: directory with the configuration files
-  - accesions.txt: Sample information
-  - config.yaml: configuration for the pipeline eg. resourcess
-- envs: directory with the conda environment descriptions
-
-## Misc files
-Makefile - various small scripts for running the pipeline
-clustersubmit.sh - script for submitting the snakefile to SLURM
-parse_snakemake_output.py - small script for viewing snakefile logs
 ```
 ## TODO
 - [ ] envs/pipeline_conda.yaml refers to specific path - change to releative

@@ -93,7 +93,7 @@ def main(
     reads_and_assembly_dir,
     output,
     cli_dryrun,
-    snakemake,
+    snakemake_arguments,
 ):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.

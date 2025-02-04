@@ -1,5 +1,4 @@
 files: "example_file.tsv"
-# files: "./config/sample_list.tsv"
 
 # Options from pau pipeline
 outdir: "./data"

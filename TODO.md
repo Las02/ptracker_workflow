@@ -26,6 +26,7 @@
 - 
 - docker ? 
 
+- [ ] envs/pipeline_conda.yaml refers to specific path - change to releative
 
 ## Last checks
 - Update README with preprint and cli.py paths to README
