@@ -4,6 +4,14 @@ import rich_click as click
 from loguru import logger
 
 
+class OneOrMoreSnakemakeArguments(click.ParamType):
+    name = "snakemake_arguments"
+
+    def convert(self, value, param, ctx):
+        value = value.split()
+        return value
+
+
 class WssFile(click.ParamType):
     """
     click Type for validating whitespace separated files.

@@ -4,7 +4,7 @@ import sys
 
 import rich_click as click
 
-from workflow_plamb.click_file_types import WssFile
+from workflow_plamb.click_file_types import OneOrMoreSnakemakeArguments, WssFile
 from workflow_plamb.command_line_runners import CliRunner, SnakemakeRunner
 from workflow_plamb.environment import EnvironmentManager
 from workflow_plamb.richclick_options import *
@@ -84,7 +84,17 @@ Passing in this file means that the pipeline will not assemble the reads but run
     help="Run a dryrun for the cli interface. Showing the commands which would be run fron the cli interface",
     is_flag=True,
 )
-def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output, cli_dryrun):
+@click.option("-s", "--snakemake_arguments", type=OneOrMoreSnakemakeArguments())
+def main(
+    setup_env,
+    reads,
+    threads,
+    dryrun,
+    reads_and_assembly_dir,
+    output,
+    cli_dryrun,
+    snakemake,
+):
     """
     \bThis is a program to run the Ptracker Snakemake pipeline to bin plasmids from metagenomic reads.
     The first time running the program it will try to install the genomad database (~3.1 G) and required scripts.
@@ -124,6 +134,10 @@ def main(setup_env, reads, threads, dryrun, reads_and_assembly_dir, output, cli_
 
     snakemake_runner = SnakemakeRunner(snakefile="snakefile.smk")
     snakemake_runner.add_arguments(["-c", str(threads)])
+
+    if snakemake_arguments is not None:
+        logger.info(f"Expanding snakemake arguments with: {snakemake_arguments}")
+        snakemake_runner.add_arguments(snakemake_arguments)
 
     # Set output directory
     snakemake_runner.output_directory = output
