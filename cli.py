@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-# Import rich_click if installed else default to click.
-# If none are installed write errormessage
 try:
     import rich_click as click
 
-    # Only set rich_click options if rich_click is installed else default to basic click package
     click.rich_click.OPTION_GROUPS = {
         "cli.py": [
             {
@@ -36,471 +33,263 @@ try:
         ],
     }
     click.rich_click.USE_RICH_MARKUP = True
-except ModuleNotFoundError as e:
+except ModuleNotFoundError:
     try:
         import click
     except ModuleNotFoundError as e:
-        print("""\nCould not find module click or module rich_click, please make sure to create an environment containing 
-either of modules eg. using conda or pip. See the user guide on the github README.\n""")
+        print(
+            """\nCould not find module click or module rich_click, please make sure to create an environment containing
+either of modules eg. using conda or pip. See the user guide on the github README.\n"""
+        )
         raise e
 
+from logic import (
+    Logger,
 
+    Smk_target_creater,
+    Snakemake_runner,
+    Environment_setupper,
+    output_binbencher_results,
+)
 from return_all import *
-import yaml
-
-# from pandas.core.generic import config
-import os
 import sys
-import subprocess
 from pathlib import Path
-import shutil
-from typing import List
 from collections import defaultdict
 
-
-# Make both -h and --help available instead of just --help
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 
 
-class Smk_target_creater:
-    """
-    smk_target_creator = Smk_target_creater(samples=["sample1", "sample2"])
-    targets = target_creator.create_targets(VambTypes=["Default"], runtimes=3)
-    """
-
-    dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
-
-    def __init__(
-        self,
-        samples: List[str],
-        vambTypes: List[str],
-        runtimes: int,
-        from_bamfiles: bool = True,
-    ):
-        self.samples = samples
-        self.vambTypes = vambTypes
-        self.runtimes = runtimes
-        self.from_bamfiles = from_bamfiles
-        # for vambtype in vambTypes:
-        #     assert vambtype in ["vamb_default"]
-
-    def create_targets(self, output_dir: Path = None, as_dict=False) -> List[str]:
-        dict_out = defaultdict(list)
-        targets = []
-        for sample in self.samples:
-            to_add = []
-            for vamb_type in self.vambTypes:
-                if self.from_bamfiles:
-                    to_add += self.add_vamb_runs(
-                        f"sample_{sample}_{vamb_type}", default=True
-                    )
-                else:
-                    to_add += self.add_vamb_runs(
-                        f"sample_{sample}_{vamb_type}", default=False
-                    )
-            if output_dir is not None:
-                to_add = [output_dir / x for x in to_add]
-            targets += to_add
-            dict_out[sample] += to_add
-
-        if as_dict:
-            return dict_out
-        return targets
-
-    def add_vamb_runs(self, sample_vamb_type: str, default: bool) -> List[str]:
-        # If it should only be run one time, it is run from bamfiles and contigfiles.
-        if self.runtimes == 1 and default:
-            return [sample_vamb_type + f"_run_1_from_bam_contig"]
-        elif default:
-            start_int = 2
-        else:
-            start_int = 1
-
-        # All should be made from rpkm and composition
-        out_targets = []
-        for run_number in range(start_int, self.runtimes + 1, 1):
-            out_targets.append(sample_vamb_type + f"_run_{run_number}_from_rpkm_comp")
-        return out_targets
-
-        # def add_vamb_runs_vamb_default(self, sample_vamb_type: str) -> List[str]:
-        #     out_targets = []
-        #     # Dont create all from rpkm and composition of the first
-        #     for run_number in range(2, self.runtimes + 1, 1):
-        #         out_targets.append(sample_vamb_type + f"_run_{run_number}_from_rpkm_comp")
-
-        return out_targets
+def validate_options(
+    benchmark_taxometer,
+    taxometer,
+    output,
+    contig_bamfiles,
+    composition_and_rpkm,
+    vamb_types,
+    recluster,
+):
+    if benchmark_taxometer and not taxometer:
+        raise click.BadParameter(
+            "--benchmark_taxometer is defined but taxometer is not"
+        )
+    if output is None:
+        raise click.BadParameter("--output is required")
+    if contig_bamfiles is None and composition_and_rpkm is None:
+        raise click.BadParameter(
+            "Neither --contig_bamfiles nor --composition_and_rpkm are used, please define one of them"
+        )
+    if contig_bamfiles is not None and composition_and_rpkm is not None:
+        raise click.BadParameter(
+            "Both --contig_bamfiles and --composition_and_rpkm are used, only use one of them"
+        )
+    if not vamb_types and not recluster:
+        raise click.BadParameter("No vamb types are defined")
 
 
-class Logger:
-    def print(self, arg):
-        click.echo(click.style(arg, fg="yellow"))
+def load_data(
+    contig_bamfiles,
+    composition_and_rpkm,
+    run_binbencher,
+    recluster,
+    benchmark_taxometer,
+    taxvamb,
+    taxometer,
+    taxvamb_and_taxometer,
+):
+    df = None
+    if contig_bamfiles is not None:
+        expected_headers = ["sample", "contig", "directory_of_bamfiles"]
+        if run_binbencher:
+            expected_headers.append("reference")
+        if recluster:
+            expected_headers.extend(["latent", "cluster", "markers"])
+        if benchmark_taxometer:
+            expected_headers.append("reference_taxometer")
+        if taxvamb or taxometer or taxvamb_and_taxometer:
+            expected_headers.append("taxonomy")
+        _, df = wss_file_checker(
+            Logger(),
+            expected_headers=expected_headers,
+            none_file_columns=["sample"],
+        ).get_info(contig_bamfiles, param="contig_bamfiles")
 
-    def warn(self, arg):
-        click.echo(click.style("WARNING:   " + arg, fg="red", underline=True))
-
-
-class Cli_runner:
-    argument_holder = []
-    _command_has_been_added = False
-    _cwd = None
-
-    def add_command_to_run(self, command_to_run):
-        if self._command_has_been_added:
-            raise Exception(
-                f"A command has allready been added: {self.argument_holder[0]}"
-            )
-        self.argument_holder = [command_to_run] + self.argument_holder
-        self._command_has_been_added = True
-
-    def add_arguments(self, arguments: List):
-        arguments = [arg for arg in arguments if arg != None]
-        self.argument_holder += arguments
-
-    def clear_arguments(self):
-        if self._command_has_been_added:
-            self.argument_holder = [self.argument_holder[0]]
-        else:
-            self.argument_holder = []
-
-    def cwd(self, cwd):
-        self._cwd = cwd
-
-    def prettyprint_args(self):
-        [print(x, end=" ") for x in self.argument_holder]
-        print()
-
-    def run(self, dry_run_command=False):
-        if dry_run_command:
-            print("running:", self.argument_holder)
-        else:
-            print("Running:")
-            self.prettyprint_args()
-            if self._cwd == None:
-                subprocess.run(self.argument_holder, check=True)
-            else:
-                print(f"cwd: {self._cwd}")
-                subprocess.run(self.argument_holder, cwd=self._cwd, check=True)
-            print("Ran:")
-            self.prettyprint_args()
+    if composition_and_rpkm is not None:
+        expected_headers = ["sample", "composition", "rpkm"]
+        if run_binbencher:
+            expected_headers.append("reference")
+        if benchmark_taxometer:
+            expected_headers.append("reference_taxometer")
+        if taxvamb or taxometer or taxvamb_and_taxometer:
+            expected_headers.append("taxonomy")
+        if recluster:
+            expected_headers.extend(["latent", "cluster", "markers"])
+        _, df = wss_file_checker(
+            Logger(),
+            expected_headers=expected_headers,
+            none_file_columns=["sample"],
+        ).get_info(composition_and_rpkm, param="composition_and_rpkm")
+    return df
 
 
-class Snakemake_runner(Cli_runner):
-    argument_holder = []
-    to_print_while_running_snakemake = None
-    config_options = None
-    target_rule = None
-    snakemake_path = shutil.which("snakemake")
-    dir_of_current_file = os.path.dirname(os.path.realpath(__file__))
-    output_directory = os.getcwd()
-    vamb_run_nam = None
-    vamb_conda_env_yamlfile = None
+def configure_snakemake(
+    threads,
+    snakemake_arguments,
+    taxvamb,
+    taxometer,
+    taxvamb_and_taxometer,
+    recluster,
+    contig_bamfiles,
+    composition_and_rpkm,
+    df,
+    vamb_types,
+    runtimes,
+    logger,
+):
+    snakemake_runner = Snakemake_runner(logger)
+    snakemake_runner.add_arguments(["-c", str(threads)])
 
-    def __init__(self, logger: Logger, snakefile: str = "snakefile.py"):
-        self.add_command_to_run(self.snakemake_path)
-        self.snakefile_path = Path(Path(self.dir_of_current_file) / snakefile)
-        self.add_arguments(["--snakefile", self.snakefile_path])
-        self.add_arguments(["--rerun-triggers", "mtime"])
-        self.add_arguments(["--nolock"])
-        self.logger = logger
-        self.validate_paths()
-        # default to run snakemake in current directory
-        # Config needs to be added in a special way
+    if snakemake_arguments is not None:
+        logger.print(f"Expanding snakemake arguments with: {snakemake_arguments}")
+        snakemake_runner.add_arguments(snakemake_arguments)
 
-    def validate_paths(self):
-        if not self.snakefile_path.exists():
-            raise click.UsageError(
-                f"Could not find snakefile, tried: {self.snakefile_path}"
-            )
+    if taxvamb or taxometer or taxvamb_and_taxometer:
+        snakemake_runner.add_to_config("taxonomy_information=yes")
 
-        if self.snakemake_path is None:
-            raise click.UsageError(
-                """Could not find snakemake, is it installed?
-See following installation guide: https://snakemake.readthedocs.io/en/stable/getting_started/installation.html"""
-            )
+    if recluster:
+        snakemake_runner.add_to_config("latent_cluster_markers=yes")
 
-        if shutil.which("mamba") is None:
-            self.logger.warn(
-                "Could not find mamba installation, is the correct environment activated?"
-            )
-            self.logger.warn(
-                "Defaulting to use conda to build environments for snakemake, this will be slower"
-            )
-            self.add_arguments(["--conda-frontend", "conda"])
-
-    def add_to_config(self, to_add):
-        if self.config_options is None:
-            self.config_options = []
-        self.config_options += [to_add]
-
-    def set_vamb_run_name(self, refhash, branch):
-        self.vamb_run_nam = f"vamb_run_name=r_{refhash}_b_{branch}"
-
-    def set_vamb_conda_env_yamlfile(self, vamb_conda_env_yamlfile):
-        self.vamb_conda_env_yamlfile = (
-            f"vamb_conda_env_yamlfile={vamb_conda_env_yamlfile}"
+    smk_target_creator = None
+    if contig_bamfiles is not None:
+        smk_target_creator = Smk_target_creater(
+            samples=list(df["sample"]),
+            vambTypes=vamb_types,
+            runtimes=runtimes,
+            from_bamfiles=True,
+        )
+        snakemake_runner.add_to_config("contig_bamfiles=yes")
+        snakemake_runner.add_to_config(f"input_data={contig_bamfiles}")
+        snakemake_runner.to_print_while_running_snakemake = (
+            f"Running snakemake with {threads} thread(s), from contigs and bamfiles"
         )
 
-    def set_target_rule(self, to_add):
-        self.target_rule = to_add
-
-    def run(self):
-        # Store old settings
-        old_config = self.config_options.copy()
-        old_argument_holder = self.argument_holder.copy()
-
-        self.add_to_config(f"output_directory={self.output_directory}")
-        self.add_to_config(f"dir_of_current_file={self.dir_of_current_file}")
-
-        if self.vamb_run_nam is not None:
-            self.add_to_config(self.vamb_run_nam)
-        if self.vamb_conda_env_yamlfile is not None:
-            self.add_to_config(self.vamb_conda_env_yamlfile)
-
-        # Add config options
-        if self.config_options is not None:
-            self.add_arguments((["--config"] + self.config_options))
-        # Log
-        if self.to_print_while_running_snakemake is not None:
-            self.logger.print(self.to_print_while_running_snakemake)
-
-        # use conda: always
-        self.add_arguments(["--use-conda"])
-        self.add_arguments(["--rerun-incomplete"])
-
-        # Needs to be added last
-        if self.target_rule is not None:
-            self.add_arguments((self.target_rule))
-
-        # Run
-        super().run()
-
-        # Restore old settings for running the tool several times changing only some options
-        self.config_options = old_config
-        self.argument_holder = old_argument_holder
-
-
-class Environment_setupper:
-    def __init__(self, logger: Logger):
-        self.dir_of_current_file = Path(os.path.dirname(os.path.realpath(__file__)))
-        self.git_path = shutil.which("git")
-        self.logger = logger
-
-        self.plamb_dir = self.dir_of_current_file / "bin" / "plamb"
-        self.genomad_dir = self.dir_of_current_file / "genomad_db"
-
-        self.plamb_ptracker_dir = (
-            self.dir_of_current_file / "bin" / "plamb_ptracker_dir"
+    if composition_and_rpkm is not None:
+        smk_target_creator = Smk_target_creater(
+            samples=list(df["sample"]),
+            vambTypes=vamb_types,
+            runtimes=runtimes,
+            from_bamfiles=False,
         )
-
-        self.ptracker_exist = self.plamb_ptracker_dir.exists()
-        self.plamb_exist = self.plamb_dir.exists()
-        self.genomad_db_exist = (self.genomad_dir).exists()
-
-    def create_conda_env_yaml(self, refhash: str, branch: str) -> Path:
-        vamb_location = (
-            self.dir_of_current_file / "bin" / f"vamb_branch_{branch}_commit_{refhash}"
+        snakemake_runner.add_to_config("composition_and_rpkm=yes")
+        snakemake_runner.add_to_config(f"input_data={composition_and_rpkm}")
+        snakemake_runner.to_print_while_running_snakemake = (
+            f"Running snakemake with {threads} thread(s), from composition and rpkm"
         )
-        with open(self.dir_of_current_file / "envs" / "vamb_env.yaml", "r") as in_file:
-            # Set up yaml to build env with correct vamb version
-            yaml_vamb_env = yaml.safe_load(in_file)
-            # TODO add way to safely rename pip dependencies without it having to be the last element
-            yaml_vamb_env["dependencies"][-1]["pip"] = ["-e " + str(vamb_location)]
-            yaml_vamb_env["name"] = str(yaml_vamb_env["name"] + f"_{refhash}")
-            # Write the yaml file
-            out_file_path = f"{self.dir_of_current_file}/envs/vamb_branch_{branch}_commit_{refhash}.yaml"
-            with open(out_file_path, "w") as out_file:
-                yaml.dump(yaml_vamb_env, out_file)
-        return Path(out_file_path)
+    return snakemake_runner, smk_target_creator
 
-    def run_git(self, cli, cwd=None):
-        git_cli_runner = Cli_runner()
-        git_cli_runner.add_command_to_run(self.git_path)
-        git_cli_runner.add_arguments(cli)
-        git_cli_runner.cwd(cwd)
-        git_cli_runner.run()
 
-    def install_conda_environments(self):
-        self.logger.print(f"Installing conda environments")
-        snakemake_runner = Snakemake_runner(self.logger)
-        snakemake_runner.add_arguments(["--use-conda", "--conda-create-envs-only"])
+def run_workflow(
+    dryrun,
+    refhash,
+    output,
+    recluster,
+    runtimes,
+    composition_and_rpkm,
+    contig_bamfiles,
+    df,
+    branch,
+    run_binbencher,
+    benchmark_taxometer,
+    logger,
+    snakemake_runner,
+    smk_target_creator,
+):
+    snakemake_runner.add_arguments(["--keep-incomplete"])
+    snakemake_runner.add_arguments(["-p"])
+
+    if dryrun:
+        snakemake_runner.add_arguments(["-np"])
+
+    if refhash is None:
+        logger.warn("Refhash not set, defaulting to the latest version of VAMB")
+        refhash = ["latest"]
+
+    for refhash_item in refhash:
+        output_dir_refhash = Path(output) / refhash_item
+        snakemake_runner.output_directory = output_dir_refhash
+
+        targets = smk_target_creator.create_targets(output_dir=output_dir_refhash)
+
+        if recluster:
+            add_to_targets = []
+            for sample in list(df["sample"]):
+                for number in range(1, runtimes + 1):
+                    if composition_and_rpkm is not None:
+                        add_to_targets.append(
+                            output_dir_refhash
+                            / f"sample_{sample}_run_{number}_from_comp_rpkm"
+                        )
+                    if contig_bamfiles is not None:
+                        add_to_targets.append(
+                            output_dir_refhash
+                            / f"sample_{sample}_run_{number}_from_bam"
+                        )
+            targets.extend(add_to_targets)
+
+        snakemake_runner.set_target_rule(targets)
+
+        env_setupper = Environment_setupper(logger)
+        env_setupper.clone_vamb_github(refhash=refhash_item, branch=branch)
+        vamb_conda_env_yamlfile = env_setupper.create_conda_env_yaml(
+            refhash=refhash_item, branch=branch
+        )
+        snakemake_runner.set_vamb_conda_env_yamlfile(vamb_conda_env_yamlfile)
+        snakemake_runner.set_vamb_run_name(refhash_item, branch)
         snakemake_runner.run()
 
-    def clone_vamb_github(self, refhash: str, branch: str):
-        vamb_location = (
-            self.dir_of_current_file / "bin" / f"vamb_branch_{branch}_commit_{refhash}"
+        targets_dict = smk_target_creator.create_targets(
+            output_dir=output_dir_refhash, as_dict=True
         )
-        if not vamb_location.exists():
-            self.logger.print(f"Using git installation: {self.git_path}")
-            self.logger.print(
-                f"Cloning vamb branch: {branch}, commit: {refhash}, to directory {vamb_location}"
-            )
-            self.run_git(
-                [
-                    "clone",
-                    "git@github.com:RasmussenLab/vamb",
-                    "-b",
-                    branch,
-                    vamb_location,
-                ]
-            )
-            # Checkout the commit given, if not latest
-            if refhash != "latest":
-                self.run_git(["checkout", refhash, "-q"], cwd=vamb_location)
-
-    def setup(self):
-        if False not in [self.ptracker_exist, self.plamb_exist, self.genomad_db_exist]:
-            raise click.UsageError(
-                "It seems that the environment has allready been setup. If something still not works, please add an issue to the repository"
-            )
-        self.logger.print("Setting up environment")
-
-        if not self.ptracker_exist:
-            self.logger.print(f"Using git installation: {self.git_path}")
-            self.logger.print(
-                f"Cloning ptracker to directory {self.plamb_ptracker_dir}"
-            )
-            clone_plamb_ptracekr = [
-                "clone",
-                "git@github.com:Paupiera/ptracker",
-                self.plamb_ptracker_dir,
-            ]
-            self.clone_directory(clone_plamb_ptracekr)
-
-        if not self.plamb_exist:
-            self.logger.print(f"Using git installation: {self.git_path}")
-            self.logger.print(f"Cloning plamb to directory {self.plamb_dir}")
-            clone_plamb = [
-                "clone",
-                "git@github.com:RasmussenLab/vamb",
-                "-b",
-                "vamb_n2v_asy",
-                self.plamb_dir,
-            ]
-            self.clone_directory(clone_plamb)
-
-        if not self.genomad_db_exist:
-            self.install_genomad_db()
-
-    def check_if_everything_is_setup(self):
-        if True not in [self.ptracker_exist, self.plamb_exist, self.genomad_db_exist]:
-            self.logger.print("It seems the environment has not been setup")
-            return False
-        if not self.ptracker_exist:
-            raise click.UsageError(
-                f"Could not find the plamb ptracker directory, try running the tool with --setup_env"
-            )
-        if not self.plamb_exist:
-            raise click.UsageError(
-                f"Could not find the plamb directory, try running the tool with --setup_env"
+        if run_binbencher:
+            output_binbencher_results(
+                targets_dict=targets_dict,
+                df=df,
+                output_file=Path(output) / "benchmark.tsv",
+                logger=logger,
+                refhash=refhash_item,
             )
 
-        if not self.genomad_db_exist:
-            raise click.UsageError(
-                f"Could not find the genomad database, try running the tool with --setup_env"
+        if benchmark_taxometer:
+            logger.print("Starting benchmarking of taxometer")
+            taxometer_benchmark_creator = Smk_target_creater(
+                samples=list(df["sample"]),
+                vambTypes=["taxometer"],
+                runtimes=runtimes,
+                from_bamfiles=True,
             )
-        return True
-
-
-class BinBencher(Cli_runner):
-    output = None
-    target_result = None
-
-    def __init__(self, reference: str, targets: List[str]) -> None:
-        super().__init__()
-        self.julia_path = shutil.which("julia")
-        self.validate_paths()
-        self.add_command_to_run(self.julia_path)
-        self.targets = targets
-        self.reference = reference
-        self.tool_to_run = "./BinBencher"
-        self.cwd(Path(os.path.dirname(os.path.realpath(__file__))))
-        self.has_been_run = []
-
-    def run_all_targets(self, dry_run_command=False):
-        self.target_result = defaultdict()
-        for target in self.targets:
-            self.clear_arguments()
-            self.add_arguments([self.tool_to_run])
-            self.add_arguments([self.reference])
-            # Only organisms
-            self.add_arguments(["true"])
-            self.add_arguments([target])
-            # Assembly
-            self.add_arguments(["true"])
-            self.run(dry_run_command=dry_run_command)
-            if not dry_run_command:
-                self.target_result[target] = self.get_output()
-
-    def get_benchmarks(self):
-        if self.target_result is None:
-            raise Exception("run cmd has not been run")
-        return dict(self.target_result)
-
-    def run(self, dry_run_command=False):
-        if dry_run_command:
-            print("running:", self.argument_holder)
-        else:
-            print("Running:")
-            self.prettyprint_args()
-            print(f"cwd: {self._cwd}")
-            self.output = subprocess.run(
-                self.argument_holder, cwd=self._cwd, stdout=subprocess.PIPE
+            targets_dict = taxometer_benchmark_creator.create_targets(
+                output_dir=output_dir_refhash, as_dict=True
             )
-            print("Ran:")
-            self.prettyprint_args()
+            import taxbench
 
-        self.has_been_run.append(self.argument_holder)
-
-    def get_output(self):
-        if self.output is None:
-            raise Exception("run cmd has not been run or did not create any std.out")
-        return int(self.output.stdout.decode("utf-8").strip())
-
-    def validate_paths(self):
-        if self.julia_path is None:
-            raise click.UsageError("""Could not find julia, is it installed?""")
-
-
-def output_binbencher_results(targets_dict, df, output_file, logger, refhash):
-    targets2benchmark = defaultdict()
-    logger.print("Starting running BinBencher")
-    sample2ref = {sample: ref for sample, ref in zip(df["sample"], df["reference"])}
-    for sample in targets_dict.keys():
-        binbencher = BinBencher(
-            reference=sample2ref[sample], targets=[x / "vae_clusters_split.tsv" for x in targets_dict[sample]]
-        )
-        # binbencher.tool_to_run = "./test_stuff/test_binbench.jl"  # WARNING remove this
-        binbencher.tool_to_run = os.path.dirname(os.path.realpath(__file__)) + "/Binbench.jl"  
-        binbencher.run_all_targets(dry_run_command=False)
-        targets2benchmark.update(binbencher.get_benchmarks())
-
-    # TODO print in a nice format including vamb_type, run_number etc. formatted in different columns
-    # if not output_file.exists():
-    #     output_file.mkdir()
-    with open(output_file, "a") as f:
-        # print("refhash\ttarget\tbenchmark", file=f)
-        for target, benchmark in targets2benchmark.items():
-            print(f"{refhash}\t{target}\t{benchmark}", file=f)
-    logger.print(f"Finished running BinBencher, output files in {output_file}")
+            logger.print("Benchmarking", targets_dict)
+            sample_truth = {
+                sample: truth
+                for sample, truth in zip(df["samples"], df["reference_taxometer"])
+            }
+            output_dict = defaultdict()
+            for sample in targets_dict.keys():
+                scores = taxbench.load_scores(
+                    sample_truth[sample], targets_dict[sample]
+                )
+                output_dict[sample] = taxbench.weighted_score(scores)
+            print(output_dict)
 
 
-# class List_of_files(click.ParamType):
-#     name = "List of paths"
-#
-#     def convert(self, value, param, ctx):
-#         for file in value:
-#             if not Path(file).exists():
-#                 self.fail(f"{file!r} is not a valid path", param, ctx)
-#         return list(value)
-
-
-@click.command()
-# @click.option("--genomad_db", help="genomad database", type=click.Path(exists=True))
-# TODO add test of bamfiles directory
+@click.command(context_settings=CONTEXT_SETTINGS)
 @click.option(
     "-b",
     "--contig_bamfiles",
-    help="""\bWhite space separated file containing sample, contig and directory_of_bamfiles. 
+    help="""\bWhite space separated file containing sample, contig and directory_of_bamfiles.
 <Notice the header names are required to be: sample, contig and directory_of_bamfiles>
 This file could look like:
 ```
@@ -512,42 +301,22 @@ sample2     path/to/sample_2/contig.fasta    path/to/sample_2/bamfiles_dir
 
 """,
     type=click.Path(exists=True),
-    # type=wss_file(
-    #     Logger(),
-    #     expected_headers=["sample", "contig", "directory_of_bamfiles"],
-    #     none_file_columns=["sample"],
-    # ),
 )
 @click.option(
     "-c",
     "--composition_and_rpkm",
     help=f"""\bWhite space separated file containing read pairs and paths to Spades output assembly directories.
 <Notice the header names are required to be: sample, composition and rpkm>
-This file could look like:  
+This file could look like:
 ```
 sample      composition                       rpkm
 sample1     path/to/sample_1/composition.npz  path/to/sample_1/rpkm.npz
 sample2     path/to/sample_2/composition.npz  path/to/sample_2/rpkm.npz
 ```
-Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
+Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step.
         """,
     type=click.Path(exists=True),
 )
-# @click.option(
-#     "-r",
-#     "--recluster",
-#     help=f"""\bWhite space separated file containing read pairs and paths to Spades output assembly directories.
-# <Notice the header names are required to be: sample, composition and rpkm>
-# This file could look like:  
-# ```
-# sample      composition                       rpkm
-# sample1     path/to/sample_1/composition.npz  path/to/sample_1/rpkm.npz
-# sample2     path/to/sample_2/composition.npz  path/to/sample_2/rpkm.npz
-# ```
-# Passing in this file means that the pipeline will not assemble the reads but run everything after the assembly step. 
-#         """,
-#     type=click.Path(exists=True),
-# )
 @click.option(
     "-t",
     "--threads",
@@ -574,7 +343,6 @@ Passing in this file means that the pipeline will not assemble the reads but run
     help="Run a dryrun for the specified files. Showing the parts of the pipeline which will be run ",
     is_flag=True,
 )
-# @click.option("--r1", cls=OptionEatAll, type=List_of_files())
 @click.option("-b", "--branch", default="master", show_default=True)
 @click.option("-r", "--runtimes", type=int, default=1, show_default=True)
 @click.option("-d", "--vamb_default", is_flag=True)
@@ -586,8 +354,6 @@ Passing in this file means that the pipeline will not assemble the reads but run
 @click.option("-tx", "--taxometer", is_flag=True)
 @click.option("-btx", "--benchmark_taxometer", is_flag=True)
 @click.option("-s", "--snakemake_arguments", type=One_or_more_snakemake_arguments())
-# @click.option( "-o", "--vamb_options", default="master", help="Pass in options to vamb", show_default=True,)
-# @click.option( "-s", "--snakemake_options", default="master", help="Pass in options to snakemake", show_default=True,)
 @click.option(
     "-r",
     "--refhash",
@@ -622,29 +388,6 @@ def main(
     Additionally, the --output argument is required which defines the output directory.
     For Quick Start please see the README: https://github.com/Las02/ptracker_workflow/tree/try_cli
     """
-
-    if benchmark_taxometer:
-        if not taxometer:
-            raise click.BadParameter(
-                "--benchmark_taxometer is defined but taxometer is not",
-            )
-        
-
-    if output is None:
-        raise click.BadParameter(
-            "--output is required",
-        )
-
-    if contig_bamfiles is None and composition_and_rpkm is None:
-        raise click.BadParameter(
-            "Neither --contig_bamfiles and --composition_and_rpkm are used, please define one of them",
-        )
-
-    if contig_bamfiles is not None and composition_and_rpkm is not None:
-        raise click.BadParameter(
-            "Both --contig_bamfiles and --composition_and_rpkm are used, only use one of them",
-        )
-
     vamb_types = []
     if vamb_default:
         vamb_types.append("vamb_default")
@@ -655,185 +398,64 @@ def main(
     if taxometer:
         vamb_types.append("taxometer")
 
-    if len(vamb_types) == 0 and not recluster:
-        raise click.BadParameter("No vamb types is defined")
+    validate_options(
+        benchmark_taxometer,
+        taxometer,
+        output,
+        contig_bamfiles,
+        composition_and_rpkm,
+        vamb_types,
+        recluster,
+    )
 
     logger = Logger()
 
-    if contig_bamfiles is not None:
-        expected_headers = ["sample", "contig", "directory_of_bamfiles"]
-        if run_binbencher:
-            expected_headers += ["reference"]
-        if recluster:
-            expected_headers += ["latent", "cluster", "markers"]
-        if benchmark_taxometer:
-            expected_headers += ["reference_taxometer"]
-        if taxvamb or taxometer or taxvamb_and_taxometer:
-            expected_headers += ["taxonomy"]
-        path_contig_bamfiles, df = wss_file_checker(
-            Logger(),
-            expected_headers=expected_headers,
-            none_file_columns=["sample"],
-        ).get_info(contig_bamfiles, param="contig_bamfiles")
+    df = load_data(
+        contig_bamfiles,
+        composition_and_rpkm,
+        run_binbencher,
+        recluster,
+        benchmark_taxometer,
+        taxvamb,
+        taxometer,
+        taxvamb_and_taxometer,
+    )
 
-    if composition_and_rpkm is not None:
-        expected_headers = ["sample", "composition", "rpkm"]
-        if run_binbencher:
-            expected_headers += ["reference"]
-        if benchmark_taxometer:
-            expected_headers += ["reference_taxometer"]
-        if taxvamb or taxometer or taxvamb_and_taxometer:
-            expected_headers += ["taxonomy"]
-        if recluster:
-            expected_headers += ["latent", "cluster", "markers"]
-        path_composition_and_rpkm, df = wss_file_checker(
-            Logger(),
-            expected_headers=expected_headers,
-            none_file_columns=["sample"],
-        ).get_info(composition_and_rpkm, param="composition_and_rpkm")
+    snakemake_runner, smk_target_creator = configure_snakemake(
+        threads,
+        snakemake_arguments,
+        taxvamb,
+        taxometer,
+        taxvamb_and_taxometer,
+        recluster,
+        contig_bamfiles,
+        composition_and_rpkm,
+        df,
+        vamb_types,
+        runtimes,
+        logger,
+    )
 
-    # if recluster is not None:
-    #     expected_headers = ["sample", "composition", "rpkm", "latent", "cluster", "markers"]
-    #     path_recluster, df_recluster = wss_file_checker(
-    #         Logger(),
-    #         expected_headers=expected_headers,
-    #         none_file_columns=["sample"],
-    #     ).get_info(recluster, param="recluster")
-
-
-    snakemake_runner = Snakemake_runner(logger)
-    snakemake_runner.add_arguments(["-c", str(threads)])
-
-    if snakemake_arguments is not None:
-        logger.print(f"Expanding snakemake arguments with: {snakemake_arguments}")
-        snakemake_runner.add_arguments(snakemake_arguments)
-
-    if taxvamb or taxometer or taxvamb_and_taxometer:
-        snakemake_runner.add_to_config(f"taxonomy_information=yes")
-
-    if recluster:
-        snakemake_runner.add_to_config(f"latent_cluster_markers=yes")
-
-    if contig_bamfiles is not None:
-        smk_target_creator = Smk_target_creater(
-            samples=list(df["sample"]),
-            vambTypes=vamb_types,
-            runtimes=runtimes,
-            from_bamfiles=True,
-        )
-        snakemake_runner.add_to_config(f"contig_bamfiles=yes")
-        snakemake_runner.add_to_config(f"input_data={path_contig_bamfiles}")
-        snakemake_runner.to_print_while_running_snakemake = (
-            f"Running snakemake with {threads} thread(s), from contigs and bamfiles"
-        )
-
-    if composition_and_rpkm is not None:
-        smk_target_creator = Smk_target_creater(
-            samples=list(df["sample"]),
-            vambTypes=vamb_types,
-            runtimes=runtimes,
-            from_bamfiles=False,
-        )
-        snakemake_runner.add_to_config(f"composition_and_rpkm=yes")
-        snakemake_runner.add_to_config(f"input_data={path_composition_and_rpkm}")
-        snakemake_runner.to_print_while_running_snakemake = (
-            f"Running snakemake with {threads} thread(s), from composition and rpkm"
-        )
-
-    # if recluster is not None:
-    #     snakemake_runner.add_to_config(f"recluster={path_recluster}")
-    #     snakemake_runner.to_print_while_running_snakemake += (
-    #         f"...and running reclustering"
-    #     )
-
-    # TODO remove ?
-    snakemake_runner.add_arguments(["--keep-incomplete"])
-    snakemake_runner.add_arguments(["-p"])
-
-    if dryrun:
-        snakemake_runner.add_arguments(["-np"])
-
-    if refhash == None:
-        logger.warn("Refhash not set, defaulting to lastest version of VAMB")
-        refhash = ["latest"]
-
-    for refhash in refhash:
-        # Set output dir for snakemake
-        output_dir_refhash = Path(output) / refhash
-        snakemake_runner.output_directory = output_dir_refhash
-
-        # create targets snakemake try to create
-        targets = smk_target_creator.create_targets(output_dir=output_dir_refhash)
-
-        # Special make them for recluster.. TODO refactor
-        if recluster:
-            add_to_targets = []
-            for sample in list(df["sample"]):
-                for number in range(1,runtimes+1):
-                    if composition_and_rpkm is not None:
-                        add_to_targets.append(output_dir_refhash / f"sample_{sample}_run_{number}_from_comp_rpkm" )
-                    if  contig_bamfiles is not None:
-                        add_to_targets.append(output_dir_refhash / f"sample_{sample}_run_{number}_from_bam" )
-            targets += add_to_targets
-
-
-        # Set targets
-        snakemake_runner.set_target_rule(targets)
-
-        # Create vamb version w.r.t. to the refhash
-        env_setupper = Environment_setupper(logger)
-        env_setupper.clone_vamb_github(refhash=refhash, branch=branch)
-        # .. and yaml file pointing to it
-        vamb_conda_env_yamlfile = env_setupper.create_conda_env_yaml(
-            refhash=refhash, branch=branch
-        )
-        # Let snakemake know where it is
-        snakemake_runner.set_vamb_conda_env_yamlfile(vamb_conda_env_yamlfile)
-
-        # Set the name of the snakemake run
-        snakemake_runner.set_vamb_run_name(refhash, branch)
-
-        # Run snakemake
-        snakemake_runner.run()
-
-        # TODO this section should be moved down such that it takes the arguments and then
-        # writes to the file without appending
-        targets_dict = smk_target_creator.create_targets(
-            output_dir=output_dir_refhash, as_dict=True
-        )
-        if run_binbencher:
-            output_binbencher_results(
-                targets_dict=targets_dict,
-                df=df,
-                output_file=Path(output) / "benchmark.tsv",
-                logger=logger,
-                refhash=refhash,
-            )
-
-        if benchmark_taxometer:
-            logger.print("Starting benchmarking of taxometer")
-            taxometer_benchmark_creator = Smk_target_creater(
-                samples=list(df["sample"]),
-                vambTypes=["taxometer"],
-                runtimes=runtimes,
-                from_bamfiles=True,
-            )
-            targets_dict = taxometer_benchmark_creator.create_targets(
-            output_dir=output_dir_refhash, as_dict=True
-            )
-            import taxbench
-            logger.print("Benchmarking", targets_dict)
-            sample_truth = {sample:truth for sample, truth in zip(df["samples"], df["reference_taxometer"])}
-            output = defaultdict()
-            for sample in targets_dict.keys():
-                scores = taxbench.load_scores(sample_truth[sample], targets_dict[sample])
-                defaultdict[sample] = taxbench.weighted_score(scores)
-            print(defaultdict)
+    run_workflow(
+        dryrun,
+        refhash,
+        output,
+        recluster,
+        runtimes,
+        composition_and_rpkm,
+        contig_bamfiles,
+        df,
+        branch,
+        run_binbencher,
+        benchmark_taxometer,
+        logger,
+        snakemake_runner,
+        smk_target_creator,
+    )
 
 
 if __name__ == "__main__":
-    # Print --help if no arguments are passed in
     if len(sys.argv) == 1:
-        main(["--help"])
+        main.main(["--help"])
     else:
         main()
